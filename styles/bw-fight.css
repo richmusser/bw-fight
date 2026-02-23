@@ -1,0 +1,455 @@
+/* Default button sizing for the dialog */
+.bw-fight-dialog button {
+  width: auto;
+}
+
+/* Fight! button in Combat Tracker sidebar */
+.bw-fight-btn {
+  display: block;
+  width: calc(100% - 12px);
+  margin: 6px;
+  padding: 6px 0;
+  text-align: center;
+  font-size: 1em;
+  font-weight: bold;
+  background: #8b0000;
+  color: #fff;
+  border: 1px solid #600;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.bw-fight-btn:hover {
+  background: #a80000;
+  text-shadow: 0 0 4px rgba(255, 200, 200, 0.6);
+}
+
+/* Fight dialog */
+.bw-fight-dialog .window-content {
+  padding: 8px;
+  overflow-y: auto;
+}
+
+.fight-toolbar {
+  margin-bottom: 8px;
+}
+
+.fight-toolbar .add-group {
+  padding: 4px 10px;
+  font-size: 0.85em;
+}
+
+/* Combatants section (always visible) */
+.unassigned-section {
+  margin-bottom: 10px;
+  padding: 6px;
+  border: 1px dashed #999;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.unassigned-section h3 {
+  margin: 0 0 6px;
+  font-size: 0.85em;
+  border: none;
+  color: #666;
+}
+
+.unassigned-actors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Draggable combatant chips */
+.combatant-draggable {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 3px;
+  font-size: 0.85em;
+  cursor: grab;
+  user-select: none;
+}
+
+.combatant-draggable.assigned {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.combatant-draggable.dragging {
+  opacity: 0.5;
+}
+
+.actor-thumb {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: 3px;
+  border: 1px solid #999;
+}
+
+/* Fight groups */
+.fight-group {
+  margin-bottom: 10px;
+  padding: 8px;
+  border: 1px solid #b5b3a4;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.02);
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.fight-group.drag-over {
+  border-color: #4a90d9;
+  background: rgba(74, 144, 217, 0.08);
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.group-header h3 {
+  margin: 0;
+  font-size: 1em;
+  border: none;
+}
+
+.exchange-counter {
+  font-size: 0.85em;
+  font-weight: bold;
+  color: #555;
+  white-space: nowrap;
+  padding: 2px 8px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
+}
+
+.next-exchange {
+  padding: 1px 5px;
+  font-size: 0.75em;
+  cursor: pointer;
+  background: transparent;
+  color: #666;
+  border: 1px solid #999;
+  border-radius: 3px;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.next-exchange:hover {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: #555;
+  color: #333;
+}
+
+.group-header .remove-group {
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  font-size: 0.8em;
+  padding: 2px 4px;
+}
+
+.group-header .remove-group:hover {
+  color: #c00;
+}
+
+.group-controls {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.control-field {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.85em;
+}
+
+.control-field label {
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.control-field select {
+  height: 24px;
+  font-size: 0.9em;
+}
+
+.control-field .readonly-value {
+  font-size: 0.9em;
+  color: #444;
+}
+
+/* Drop zone placeholder (shown when group has no actors) */
+.group-drop-zone {
+  padding: 12px;
+  border: 2px dashed #ccc;
+  border-radius: 4px;
+  text-align: center;
+  color: #999;
+  font-style: italic;
+  font-size: 0.85em;
+}
+
+/* Volley grid */
+.volley-grid {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 1.7em;
+}
+
+.volley-grid th {
+  text-align: left;
+  padding: 6px 6px;
+  border-bottom: 2px solid #b5b3a4;
+  font-size: 0.6em;
+  color: #555;
+}
+
+.volley-grid td {
+  padding: 6px 6px;
+  border-bottom: 1px solid #ddd;
+  vertical-align: middle;
+}
+
+.volley-grid .col-actor {
+  width: 25%;
+}
+
+.volley-grid .col-volley {
+  width: 22%;
+}
+
+.volley-grid .col-ready {
+  width: 50px;
+}
+
+.volley-grid .col-remove {
+  width: 28px;
+}
+
+.volley-grid .actor-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.volley-grid .actor-cell .actor-thumb {
+  width: 56px;
+  height: 56px;
+}
+
+.volley-grid .actor-cell .actor-name {
+  font-weight: bold;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.volley-grid .remove-from-group {
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  padding: 2px;
+  font-size: 0.8em;
+}
+
+.volley-grid .remove-from-group:hover {
+  color: #c00;
+}
+
+.ready-cell {
+  text-align: center;
+}
+
+.ready-btn {
+  padding: 2px 6px;
+  font-size: 0.5em;
+  cursor: pointer;
+  background: transparent;
+  color: #555;
+  border: 1px solid #999;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.ready-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: #555;
+  color: #333;
+}
+
+.ready-locked {
+  color: #4a7c59;
+  font-size: 0.7em;
+}
+
+.no-actors,
+.no-groups {
+  color: #888;
+  font-style: italic;
+  font-size: 0.85em;
+  text-align: center;
+  margin: 8px 0;
+}
+
+/* Reveal button in volley header */
+.reveal-volley {
+  background: none;
+  border: 1px solid #888;
+  border-radius: 3px;
+  color: #555;
+  cursor: pointer;
+  padding: 1px 5px;
+  margin-left: 4px;
+  font-size: 0.85em;
+  vertical-align: middle;
+}
+
+.reveal-volley:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: #222;
+  border-color: #555;
+}
+
+/* Volley cell — flex container for action cards */
+.volley-cell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 70px;
+  align-items: flex-start;
+}
+
+/* Action cards */
+.action-card {
+  width: 100px;
+  height: 70px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.5em;
+  font-weight: bold;
+  text-align: center;
+  line-height: 1.2;
+  box-sizing: border-box;
+  user-select: none;
+}
+
+/* Blank card — clickable slot to add a new action */
+.action-card.blank {
+  border: 2px dashed #bbb;
+  background: rgba(0, 0, 0, 0.02);
+  color: #aaa;
+  cursor: pointer;
+}
+
+.action-card.blank:hover {
+  border-color: #888;
+  background: rgba(0, 0, 0, 0.06);
+  color: #666;
+}
+
+/* Owned card — player can see their own scripted action */
+.action-card.owned {
+  border: 1px solid #4a7c59;
+  background: #e8f5e9;
+  color: #2e5e3e;
+  cursor: pointer;
+}
+
+.action-card.owned:hover {
+  background: #fce4ec;
+  border-color: #c00;
+  color: #c00;
+}
+
+/* Locked card — owner's view after clicking Ready */
+.action-card.locked {
+  border: 1px solid #7a6f44;
+  background: #f5f0dc;
+  color: #5a5028;
+  cursor: default;
+}
+
+/* Hidden card — face-down card belonging to another player */
+.action-card.hidden {
+  border: 1px solid #666;
+  background: linear-gradient(135deg, #5a5a5a 0%, #3a3a3a 100%);
+  color: transparent;
+  cursor: default;
+}
+
+.action-card.hidden .card-back {
+  display: block;
+  width: 16px;
+  height: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+  background: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 2px,
+    rgba(255, 255, 255, 0.06) 2px,
+    rgba(255, 255, 255, 0.06) 4px
+  );
+}
+
+/* Revealed card — visible to everyone after reveal */
+.action-card.revealed {
+  border: 1px solid #1565c0;
+  background: #e3f2fd;
+  color: #0d47a1;
+  cursor: default;
+}
+
+/* Card label text */
+.action-card .card-label {
+  padding: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Action picker popup */
+.bw-action-picker {
+  background: #fff;
+  border: 1px solid #999;
+  border-radius: 6px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  min-width: 120px;
+}
+
+.action-pick-btn {
+  display: block;
+  width: 100%;
+  padding: 5px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fafafa;
+  font-size: 0.85em;
+  font-weight: bold;
+  cursor: pointer;
+  text-align: left;
+  color: #333;
+}
+
+.action-pick-btn:hover {
+  background: #e3f2fd;
+  border-color: #1565c0;
+  color: #0d47a1;
+}

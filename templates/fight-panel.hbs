@@ -1,0 +1,33 @@
+<div class="bw-fight-header">
+  <button type="button" class="close-fight">End Fight</button>
+</div>
+
+<div class="bw-fight-actors">
+  {{#each actors}}
+  <div class="bw-fight-actor">
+    <img class="actor-portrait" src="{{img}}" alt="{{name}}" />
+    <div class="actor-body">
+      <div class="actor-name">{{name}}</div>
+      <div class="actor-controls">
+        <label class="advantage-label">
+          <input type="checkbox" class="advantage-check" data-actor-id="{{actorId}}" {{#if hasAdvantage}}checked{{/if}} />
+          Advantage
+        </label>
+        {{#unless hasAdvantage}}
+        <div class="disadvantage-row">
+          <span>Disadvantage:</span>
+          <select class="disadvantage-select" data-actor-id="{{actorId}}">
+            {{#each disadvantageOptions}}
+            <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+            {{/each}}
+          </select>
+        </div>
+        {{/unless}}
+      </div>
+    </div>
+    <button type="button" class="remove-actor" data-actor-id="{{actorId}}" title="Remove from Fight">
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+  {{/each}}
+</div>
