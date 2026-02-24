@@ -160,35 +160,6 @@
   color: #c00;
 }
 
-.group-controls {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 6px;
-  flex-wrap: wrap;
-}
-
-.control-field {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.85em;
-}
-
-.control-field label {
-  font-weight: bold;
-  white-space: nowrap;
-}
-
-.control-field select {
-  height: 24px;
-  font-size: 0.9em;
-}
-
-.control-field .readonly-value {
-  font-size: 0.9em;
-  color: #444;
-}
-
 /* Drop zone placeholder (shown when group has no actors) */
 .group-drop-zone {
   padding: 12px;
@@ -246,6 +217,13 @@
 .volley-grid .actor-cell .actor-thumb {
   width: 56px;
   height: 56px;
+  cursor: pointer;
+}
+
+.volley-grid .actor-cell .actor-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .volley-grid .actor-cell .actor-name {
@@ -253,6 +231,35 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.volley-grid .actor-cell .wound-penalty {
+  font-size: 0.55em;
+  font-weight: bold;
+  color: #b71c1c;
+  background: rgba(183, 28, 28, 0.1);
+  padding: 1px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.actor-disadvantage {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.55em;
+}
+
+.actor-disadvantage label {
+  font-weight: bold;
+  white-space: nowrap;
+  color: #555;
+}
+
+.actor-disadvantage select {
+  height: 20px;
+  font-size: 1em;
+  padding: 0 2px;
 }
 
 .volley-grid .remove-from-group {

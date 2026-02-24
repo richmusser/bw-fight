@@ -53,6 +53,9 @@ class FightDialog extends Application {
     this.combat = combat;
     // Local (unrevealed) actions: { [groupId]: { [actorId]: [[], [], []] } }
     this.localActions = {};
+    // Tracks actors whose Ready has been sent but not yet saved to combat flags.
+    // Maps "groupId-actorId" → actions array so we can render locked cards locally.
+    this._pendingReadyLocal = {};
     // Pending reveal callbacks
     this._pendingRevealResolvers = {};
   }
@@ -70,6 +73,25 @@ class FightDialog extends Application {
 
   get id() {
     return `bw-fight-${this.combat.id}`;
+  }
+
+  async _render(...args) {
+    await this._ensureDefaultGroup();
+    return super._render(...args);
+  }
+
+  async _ensureDefaultGroup() {
+    const groups = loadGroups(this.combat);
+    if (groups.length === 0 && game.user.isGM) {
+      groups.push({
+        id: foundry.utils.randomID(),
+        name: "Group 1",
+        actorIds: [],
+        exchange: 1,
+      });
+      await saveGroups(this.combat, groups);
+      this._emitGroupsUpdated();
+    }
   }
 
   getData() {
@@ -105,10 +127,17 @@ class FightDialog extends Application {
       const actors = (group.actorIds || []).map(actorId => {
         const actor = game.actors.get(actorId);
         const isOwner = actor?.isOwner ?? false;
-        const isReady = !!groupReady[actorId];
+        const pendingReadyKey = `${group.id}-${actorId}`;
+        const pendingReadyActions = this._pendingReadyLocal[pendingReadyKey];
+        const isReady = !!groupReady[actorId] || !!pendingReadyActions;
         const localGroupActions = this.localActions[group.id] || {};
         const localActorActions = localGroupActions[actorId] || [[], [], []];
         const scriptedActions = groupScripted[actorId] || [[], [], []];
+
+        // Clear pendingReadyLocal once flags have caught up
+        if (groupReady[actorId] && pendingReadyActions) {
+          delete this._pendingReadyLocal[pendingReadyKey];
+        }
 
         const volleys = [0, 1, 2].map(vi => {
           const volleyRevealed = groupRevealed[vi];
@@ -125,22 +154,11 @@ class FightDialog extends Application {
             };
           }
 
-          // If actor is ready, show locked cards
+          // If actor is ready, show a single face-down card until revealed
           if (isReady) {
-            const readyCards = scriptedActions[vi] || [];
-            if (isOwner) {
-              // Owner sees their own locked actions
-              return {
-                volleyIndex: vi,
-                cards: readyCards.map(a => ({ action: a, state: "locked", isHidden: false })),
-                canScript: false,
-                isRevealed: false,
-              };
-            }
-            // Others see face-down cards for the ready count
             return {
               volleyIndex: vi,
-              cards: readyCards.map(() => ({ action: "", state: "hidden", isHidden: true })),
+              cards: [{ action: "", state: "hidden", isHidden: true }],
               canScript: false,
               isRevealed: false,
             };
@@ -167,30 +185,25 @@ class FightDialog extends Application {
           };
         });
 
+        const actorDisadvantage = (group.actorDisadvantage || {})[actorId] || 0;
+        const disadvantageOptions = Array.from({ length: 6 }, (_, i) => ({
+          value: i,
+          label: `+${i} Ob`,
+          selected: i === actorDisadvantage,
+        }));
+
         return {
           actorId,
           name: actor?.name ?? "Unknown",
           img: actor?.img ?? "icons/svg/mystery-man.svg",
+          woundedDice: actor?.system?.pgts?.woundedDice ?? 0,
+          obstaclePenalty: actor?.system?.pgts?.obstaclePenalties ?? 0,
           isOwner,
           isReady,
           volleys,
+          disadvantageOptions,
         };
       });
-
-      const advantageOptions = (group.actorIds || []).map(actorId => {
-        const actor = game.actors.get(actorId);
-        return {
-          actorId,
-          name: actor?.name ?? "Unknown",
-          selected: actorId === group.advantageActorId,
-        };
-      });
-
-      const disadvantageOptions = Array.from({ length: 10 }, (_, i) => ({
-        value: i + 1,
-        label: `+${i + 1}Ob`,
-        selected: (i + 1) === group.disadvantage,
-      }));
 
       // Check which volleys are revealed for this group
       const volleyRevealed = [0, 1, 2].map(vi => !!groupRevealed[vi]);
@@ -200,8 +213,6 @@ class FightDialog extends Application {
         name: group.name,
         actors,
         hasActors: actors.length > 0,
-        advantageOptions,
-        disadvantageOptions,
         volleyRevealed,
         exchange: group.exchange || 1,
       };
@@ -222,8 +233,6 @@ class FightDialog extends Application {
     if (game.user.isGM) {
       html.find(".add-group").on("click", this._onAddGroup.bind(this));
       html.find(".show-to-players").on("click", this._onShowToPlayers.bind(this));
-      html.find(".advantage-select").on("change", this._onAdvantageChange.bind(this));
-      html.find(".disadvantage-select").on("change", this._onDisadvantageChange.bind(this));
       html.find(".remove-from-group").on("click", this._onRemoveFromGroup.bind(this));
       html.find(".remove-group").on("click", this._onRemoveGroup.bind(this));
       html.find(".reveal-volley").on("click", this._onRevealVolley.bind(this));
@@ -253,7 +262,15 @@ class FightDialog extends Application {
       });
     }
 
-    // All users can click action cards and ready button
+    // Double-click actor image to open character sheet
+    html.find(".volley-grid .actor-thumb").on("dblclick", (event) => {
+      const actorId = event.currentTarget.closest("tr").querySelector("[data-actor-id]")?.dataset.actorId;
+      const actor = game.actors.get(actorId);
+      if (actor) actor.sheet.render(true);
+    });
+
+    // All users can change disadvantage, click action cards, and ready button
+    html.find(".actor-disadvantage-select").on("change", this._onActorDisadvantageChange.bind(this));
     html.find(".action-card.blank").on("click", this._onBlankCardClick.bind(this));
     html.find(".action-card.owned").on("click", this._onOwnedCardClick.bind(this));
     html.find(".ready-btn").on("click", this._onReadyClick.bind(this));
@@ -270,8 +287,6 @@ class FightDialog extends Application {
     groups.push({
       id: foundry.utils.randomID(),
       name: `Group ${groups.length + 1}`,
-      advantageActorId: null,
-      disadvantage: 1,
       actorIds: [],
       exchange: 1,
     });
@@ -280,27 +295,36 @@ class FightDialog extends Application {
     this.render(false);
   }
 
-  async _onAdvantageChange(event) {
+  async _onActorDisadvantageChange(event) {
     const groupId = event.currentTarget.dataset.groupId;
-    const actorId = event.currentTarget.value;
-    const groups = loadGroups(this.combat);
-    const group = groups.find(g => g.id === groupId);
-    if (group) {
-      group.advantageActorId = actorId || null;
-      await saveGroups(this.combat, groups);
-      this._emitGroupsUpdated();
-    }
-  }
-
-  async _onDisadvantageChange(event) {
-    const groupId = event.currentTarget.dataset.groupId;
+    const actorId = event.currentTarget.dataset.actorId;
     const value = parseInt(event.currentTarget.value);
-    const groups = loadGroups(this.combat);
-    const group = groups.find(g => g.id === groupId);
-    if (group) {
-      group.disadvantage = value;
-      await saveGroups(this.combat, groups);
-      this._emitGroupsUpdated();
+
+    if (game.user.isGM) {
+      const groups = loadGroups(this.combat);
+      const group = groups.find(g => g.id === groupId);
+      if (group) {
+        if (!group.actorDisadvantage) group.actorDisadvantage = {};
+        group.actorDisadvantage[actorId] = value;
+        await saveGroups(this.combat, groups);
+      }
+    } else {
+      // Players can't write combat flags; use both user flags and socket
+      // for maximum reliability
+      game.socket.emit(SOCKET_NAME, {
+        type: "disadvantageChange",
+        combatId: this.combat.id,
+        groupId,
+        actorId,
+        value,
+      });
+      await game.user.setFlag(FLAG_SCOPE, "pendingDisadvantage", {
+        combatId: this.combat.id,
+        groupId,
+        actorId,
+        value,
+        t: Date.now(),
+      });
     }
   }
 
@@ -326,7 +350,7 @@ class FightDialog extends Application {
     const group = groups.find(g => g.id === groupId);
     if (group) {
       group.actorIds = group.actorIds.filter(id => id !== actorId);
-      if (group.advantageActorId === actorId) group.advantageActorId = null;
+      if (group.actorDisadvantage) delete group.actorDisadvantage[actorId];
       await saveGroups(this.combat, groups);
       // Clean local actions
       if (this.localActions[groupId]) delete this.localActions[groupId][actorId];
@@ -497,7 +521,7 @@ class FightDialog extends Application {
 
   // ---- Ready Flow ----
 
-  _onReadyClick(event) {
+  async _onReadyClick(event) {
     const el = event.currentTarget;
     const groupId = el.dataset.groupId;
     const actorId = el.dataset.actorId;
@@ -508,12 +532,23 @@ class FightDialog extends Application {
     const localGroupActions = this.localActions[groupId] || {};
     const actions = localGroupActions[actorId] || [[], [], []];
 
+    // Stash actions locally so we can render locked cards while waiting for flags
+    const key = `${groupId}-${actorId}`;
+    this._pendingReadyLocal[key] = foundry.utils.duplicate(actions);
+
+    // Clear local actions and re-render immediately to show locked state
+    if (this.localActions[groupId]) {
+      delete this.localActions[groupId][actorId];
+    }
+    this.render(false);
+
     if (game.user.isGM) {
-      this._saveReadyState(groupId, actorId, actions).then(() => {});
+      await this._saveReadyState(groupId, actorId, actions);
+      delete this._pendingReadyLocal[key];
     } else {
       // Players can't write combat flags, so write to own user flags.
       // The GM picks this up via the updateUser hook.
-      game.user.setFlag(FLAG_SCOPE, "pendingReady", {
+      await game.user.setFlag(FLAG_SCOPE, "pendingReady", {
         combatId: this.combat.id,
         groupId,
         actorId,
@@ -521,12 +556,6 @@ class FightDialog extends Application {
         t: Date.now(),
       });
     }
-
-    // Clear local actions since they're now stored server-side
-    if (this.localActions[groupId]) {
-      delete this.localActions[groupId][actorId];
-    }
-    this.render(false);
   }
 
   async _saveReadyState(groupId, actorId, actions) {
@@ -575,24 +604,24 @@ class FightDialog extends Application {
       if (actions.length > 0) collected[actorId] = [...actions];
     }
 
-    // Request actions from non-ready players
-    game.socket.emit(SOCKET_NAME, {
-      type: "requestReveal",
-      combatId: this.combat.id,
+    // Store pending collection for updateUser handler to fill
+    const key = `${groupId}-${volleyIndex}`;
+    this._pendingRevealResolvers[key] = { collected };
+
+    // Request actions from players via combat flag (reliable, unlike sockets)
+    await this.combat.setFlag(FLAG_SCOPE, "pendingReveal", {
       groupId,
       volleyIndex,
+      t: Date.now(),
     });
 
-    // Wait for client submissions
+    // Wait for player submissions via updateUser hook
     await new Promise(resolve => {
-      this._pendingRevealResolvers[`${groupId}-${volleyIndex}`] = {
-        collected,
-        resolve,
-        timer: setTimeout(resolve, 3000),
-      };
+      this._pendingRevealResolvers[key].resolve = resolve;
+      this._pendingRevealResolvers[key].timer = setTimeout(resolve, 3000);
     });
 
-    delete this._pendingRevealResolvers[`${groupId}-${volleyIndex}`];
+    delete this._pendingRevealResolvers[key];
 
     // Save revealed actions
     const revealed = loadRevealed(this.combat);
@@ -623,14 +652,6 @@ class FightDialog extends Application {
         this.render(false);
         break;
 
-      case "requestReveal":
-        this._handleRevealRequest(data);
-        break;
-
-      case "submitActions":
-        this._handleSubmitActions(data);
-        break;
-
       case "actionCount":
         this._handleActionCount(data);
         break;
@@ -638,12 +659,14 @@ class FightDialog extends Application {
       case "nextExchange":
         this._handleNextExchange(data);
         break;
+
+      case "disadvantageChange":
+        this._handleDisadvantageChange(data);
+        break;
     }
   }
 
-  _handleRevealRequest(data) {
-    if (game.user.isGM) return; // GM handles its own
-    const { groupId, volleyIndex } = data;
+  _submitActionsForReveal({ groupId, volleyIndex }) {
     const readyData = loadReady(this.combat);
     const groupReady = readyData[groupId] || {};
     const groupActions = this.localActions[groupId] || {};
@@ -654,14 +677,15 @@ class FightDialog extends Application {
       if (actions.length > 0) submission[actorId] = [...actions];
     }
 
-    game.socket.emit(SOCKET_NAME, {
-      type: "submitActions",
-      combatId: this.combat.id,
-      groupId,
-      volleyIndex,
-      actions: submission,
-      userId: game.user.id,
-    });
+    if (Object.keys(submission).length > 0) {
+      game.user.setFlag(FLAG_SCOPE, "pendingRevealSubmission", {
+        combatId: this.combat.id,
+        groupId,
+        volleyIndex,
+        actions: submission,
+        t: Date.now(),
+      });
+    }
 
     // Clear local actions for this volley since they're being revealed
     if (this.localActions[groupId]) {
@@ -669,19 +693,6 @@ class FightDialog extends Application {
         if (this.localActions[groupId][actorId]) {
           this.localActions[groupId][actorId][volleyIndex] = [];
         }
-      }
-    }
-  }
-
-  _handleSubmitActions(data) {
-    if (!game.user.isGM) return; // Only GM collects
-    const key = `${data.groupId}-${data.volleyIndex}`;
-    const pending = this._pendingRevealResolvers[key];
-    if (!pending) return;
-
-    for (const [actorId, actions] of Object.entries(data.actions)) {
-      if (!pending.collected[actorId]?.length) {
-        pending.collected[actorId] = actions;
       }
     }
   }
@@ -710,6 +721,18 @@ class FightDialog extends Application {
     const key = `${data.groupId}-${data.actorId}-${data.volleyIndex}`;
     this._remoteCardCounts[key] = data.count;
     this.render(false);
+  }
+
+  async _handleDisadvantageChange(data) {
+    if (!game.user.isGM) return; // Only GM writes combat flags
+    const { groupId, actorId, value } = data;
+    const groups = loadGroups(this.combat);
+    const group = groups.find(g => g.id === groupId);
+    if (group) {
+      if (!group.actorDisadvantage) group.actorDisadvantage = {};
+      group.actorDisadvantage[actorId] = value;
+      await saveGroups(this.combat, groups);
+    }
   }
 
   _handleNextExchange(data) {
@@ -794,23 +817,82 @@ Hooks.on("updateCombat", (combat, change) => {
     return;
   }
 
+  // If pendingReveal flag changed, players submit their local actions
+  if (change.flags[FLAG_SCOPE].pendingReveal && !game.user.isGM) {
+    const dialog = findFightDialog(combat.id);
+    if (dialog) dialog._submitActionsForReveal(change.flags[FLAG_SCOPE].pendingReveal);
+  }
+
   const dialog = findFightDialog(combat.id);
   if (dialog) dialog.render(false);
 });
 
-// GM picks up player ready requests written to user flags
+// GM picks up player ready requests and reveal submissions written to user flags.
+// Read directly from the user document rather than relying on the change diff,
+// since Foundry may deliver the diff in dot-notation or nested form.
 Hooks.on("updateUser", (user, change) => {
   if (!game.user.isGM) return;
-  const pending = change?.flags?.[FLAG_SCOPE]?.pendingReady;
-  if (!pending) return;
+  if (user.id === game.user.id) return; // Ignore GM's own user updates
 
-  const { combatId, groupId, actorId, actions } = pending;
-  const combat = game.combats.get(combatId);
-  if (!combat) return;
+  // Check if bw-fight flags were part of this update
+  const hasBwFightChange = change?.flags?.[FLAG_SCOPE]
+    || Object.keys(change).some(k => k.startsWith(`flags.${FLAG_SCOPE}`));
+  if (!hasBwFightChange) return;
 
-  const dialog = findFightDialog(combatId);
-  if (dialog) {
-    dialog._saveReadyState(groupId, actorId, actions);
+  const pendingReady = user.getFlag(FLAG_SCOPE, "pendingReady");
+  if (pendingReady) {
+    const { combatId, groupId, actorId, actions } = pendingReady;
+    const combat = game.combats.get(combatId);
+    if (combat) {
+      const ready = loadReady(combat);
+      if (!ready[groupId]) ready[groupId] = {};
+      ready[groupId][actorId] = true;
+      saveReady(combat, ready).then(() => {
+        const scripted = loadScripted(combat);
+        if (!scripted[groupId]) scripted[groupId] = {};
+        scripted[groupId][actorId] = foundry.utils.duplicate(actions);
+        return saveScripted(combat, scripted);
+      });
+    }
+  }
+
+  const pendingRevealSubmission = user.getFlag(FLAG_SCOPE, "pendingRevealSubmission");
+  if (pendingRevealSubmission) {
+    const { combatId, groupId, volleyIndex, actions } = pendingRevealSubmission;
+    const dialog = findFightDialog(combatId);
+    if (dialog) {
+      const key = `${groupId}-${volleyIndex}`;
+      const pending = dialog._pendingRevealResolvers[key];
+      if (pending) {
+        for (const [actorId, actorActions] of Object.entries(actions)) {
+          if (!pending.collected[actorId]?.length) {
+            pending.collected[actorId] = actorActions;
+          }
+        }
+      }
+    }
+  }
+
+  const pendingDisadvantage = user.getFlag(FLAG_SCOPE, "pendingDisadvantage");
+  if (pendingDisadvantage) {
+    const { combatId, groupId, actorId, value } = pendingDisadvantage;
+    const combat = game.combats.get(combatId);
+    if (combat) {
+      const groups = loadGroups(combat);
+      const group = groups.find(g => g.id === groupId);
+      if (group) {
+        if (!group.actorDisadvantage) group.actorDisadvantage = {};
+        group.actorDisadvantage[actorId] = value;
+        saveGroups(combat, groups);
+      }
+    }
+  }
+});
+
+// Re-render dialog when actor data changes (e.g. wound penalties)
+Hooks.on("updateActor", () => {
+  for (const win of Object.values(ui.windows)) {
+    if (win instanceof FightDialog) win.render(false);
   }
 });
 
