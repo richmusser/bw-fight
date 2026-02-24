@@ -371,6 +371,8 @@ class FightDialog extends Application {
       html.find(".reset-fight").on("click", this._onResetFight.bind(this));
       html.find(".remove-from-group").on("click", this._onRemoveFromGroup.bind(this));
       html.find(".remove-group").on("click", this._onRemoveGroup.bind(this));
+      html.find(".move-actor-up").on("click", this._onMoveActorUp.bind(this));
+      html.find(".move-actor-down").on("click", this._onMoveActorDown.bind(this));
       html.find(".reveal-volley").on("click", this._onRevealVolley.bind(this));
       html.find(".next-exchange").on("click", this._onNextExchange.bind(this));
 
@@ -631,6 +633,34 @@ class FightDialog extends Application {
     const remaining = groups.filter(g => g.id !== groupId);
     delete this.localActions[groupId];
     await saveGroups(this.combat, remaining);
+    this._emitGroupsUpdated();
+    this.render(false);
+  }
+
+  async _onMoveActorUp(event) {
+    const groupId = event.currentTarget.dataset.groupId;
+    const actorId = event.currentTarget.dataset.actorId;
+    const groups = loadGroups(this.combat);
+    const group = groups.find(g => g.id === groupId);
+    if (!group) return;
+    const idx = group.actorIds.indexOf(actorId);
+    if (idx <= 0) return;
+    [group.actorIds[idx - 1], group.actorIds[idx]] = [group.actorIds[idx], group.actorIds[idx - 1]];
+    await saveGroups(this.combat, groups);
+    this._emitGroupsUpdated();
+    this.render(false);
+  }
+
+  async _onMoveActorDown(event) {
+    const groupId = event.currentTarget.dataset.groupId;
+    const actorId = event.currentTarget.dataset.actorId;
+    const groups = loadGroups(this.combat);
+    const group = groups.find(g => g.id === groupId);
+    if (!group) return;
+    const idx = group.actorIds.indexOf(actorId);
+    if (idx < 0 || idx >= group.actorIds.length - 1) return;
+    [group.actorIds[idx], group.actorIds[idx + 1]] = [group.actorIds[idx + 1], group.actorIds[idx]];
+    await saveGroups(this.combat, groups);
     this._emitGroupsUpdated();
     this.render(false);
   }

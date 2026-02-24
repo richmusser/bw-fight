@@ -145,7 +145,13 @@
             {{/if}}
           </td>
           {{#if ../../isGM}}
-          <td><button type="button" class="remove-from-group" data-group-id="{{../id}}" data-actor-id="{{actorId}}" title="Remove"><i class="fas fa-times"></i></button></td>
+          <td class="actor-actions-cell">
+            <button type="button" class="remove-from-group" data-group-id="{{../id}}" data-actor-id="{{actorId}}" title="Remove"><i class="fas fa-times"></i></button>
+            <div class="actor-reorder">
+              <button type="button" class="move-actor-up" data-group-id="{{../id}}" data-actor-id="{{actorId}}" title="Move up"><i class="fas fa-chevron-up"></i></button>
+              <button type="button" class="move-actor-down" data-group-id="{{../id}}" data-actor-id="{{actorId}}" title="Move down"><i class="fas fa-chevron-down"></i></button>
+            </div>
+          </td>
           {{/if}}
         </tr>
         {{/each}}

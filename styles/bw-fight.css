@@ -281,6 +281,10 @@
   margin-left: 10px;
 }
 
+.actor-actions-cell {
+  text-align: center;
+}
+
 .volley-grid .remove-from-group {
   background: none;
   border: none;
@@ -292,6 +296,28 @@
 
 .volley-grid .remove-from-group:hover {
   color: #c00;
+}
+
+.actor-reorder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  margin-top: 2px;
+}
+
+.actor-reorder button {
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  padding: 0 2px;
+  font-size: 0.7em;
+  line-height: 1;
+}
+
+.actor-reorder button:hover {
+  color: #333;
 }
 
 .ready-cell {
