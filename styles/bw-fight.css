@@ -25,6 +25,10 @@
 }
 
 /* Fight dialog */
+.bw-fight-dialog {
+  max-height: 90vh;
+}
+
 .bw-fight-dialog .window-content {
   padding: 8px;
   overflow-y: auto;
@@ -355,6 +359,7 @@
   height: 70px;
   border-radius: 6px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   font-size: 0.5em;
@@ -363,6 +368,7 @@
   line-height: 1.2;
   box-sizing: border-box;
   user-select: none;
+  position: relative;
 }
 
 /* Blank card — clickable slot to add a new action */
@@ -471,6 +477,26 @@
   text-overflow: ellipsis;
 }
 
+.action-card .card-subtext {
+  font-weight: normal;
+  font-style: italic;
+  font-size: 0.85em;
+  opacity: 0.7;
+}
+
+.action-card .card-chat-btn {
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  font-size: 0.8em;
+  opacity: 0.3;
+  cursor: pointer;
+}
+
+.action-card .card-chat-btn:hover {
+  opacity: 1;
+}
+
 /* Action picker popup */
 .bw-action-picker {
   background: #fff;
@@ -482,6 +508,9 @@
   gap: 3px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
   min-width: 120px;
+  max-height: 400px;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .action-pick-btn {

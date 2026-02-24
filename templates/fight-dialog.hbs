@@ -108,11 +108,18 @@
                 data-group-id="{{../../../id}}"
                 data-actor-id="{{../../actorId}}"
                 data-volley="{{../volleyIndex}}"
-                data-card-index="{{@index}}">
+                data-card-index="{{@index}}"
+                {{#if description}}title="{{description}}"{{/if}}>
                 {{#if isHidden}}
                   <span class="card-back"></span>
                 {{else}}
+                  {{#if description}}
+                  <i class="fas fa-comment card-chat-btn" title="Send to chat"></i>
+                  {{/if}}
                   <span class="card-label">{{action}}</span>
+                  {{#if subtext}}
+                  <span class="card-subtext">{{subtext}}</span>
+                  {{/if}}
                 {{/if}}
               </div>
               {{/each}}
