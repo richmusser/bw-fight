@@ -176,6 +176,7 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 1.7em;
+  border-bottom: 0;
 }
 
 .volley-grid th {
@@ -188,12 +189,12 @@
 
 .volley-grid td {
   padding: 6px 6px;
-  border-bottom: 1px solid #ddd;
-  vertical-align: middle;
+  vertical-align: top;
 }
 
 .volley-grid .col-actor {
   width: 25%;
+  min-width: 270px;
 }
 
 .volley-grid .col-volley {
@@ -226,6 +227,13 @@
   min-width: 0;
 }
 
+.volley-grid .actor-cell .actor-name-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
 .volley-grid .actor-cell .actor-name {
   font-weight: bold;
   white-space: nowrap;
@@ -237,29 +245,31 @@
   font-size: 0.55em;
   font-weight: bold;
   color: #b71c1c;
-  background: rgba(183, 28, 28, 0.1);
-  padding: 1px 5px;
-  border-radius: 3px;
   white-space: nowrap;
 }
 
-.actor-disadvantage {
+.actor-disadvantage,
+.actor-stance {
   display: flex;
   align-items: center;
-  gap: 4px;
+  justify-content: space-between;
   font-size: 0.55em;
+  margin-top:3px;
 }
 
-.actor-disadvantage label {
+.actor-disadvantage label,
+.actor-stance label {
   font-weight: bold;
   white-space: nowrap;
   color: #555;
 }
 
-.actor-disadvantage select {
+.actor-disadvantage select,
+.actor-stance select {
   height: 20px;
   font-size: 1em;
   padding: 0 2px;
+  margin-left: 10px;
 }
 
 .volley-grid .remove-from-group {
@@ -312,21 +322,22 @@
 
 /* Reveal button in volley header */
 .reveal-volley {
-  background: none;
-  border: 1px solid #888;
+  background: #aaa;
+  border: 1px solid #666;
   border-radius: 3px;
-  color: #555;
+  color: #fff;
   cursor: pointer;
-  padding: 1px 5px;
-  margin-left: 4px;
+  padding: 2px 8px;
+  margin-left: 6px;
   font-size: 0.85em;
+  font-weight: bold;
   vertical-align: middle;
 }
 
 .reveal-volley:hover {
-  background: rgba(0, 0, 0, 0.08);
-  color: #222;
+  background: #ddd;
   border-color: #555;
+  color: #fff;
 }
 
 /* Volley cell — flex container for action cards */

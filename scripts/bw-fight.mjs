@@ -59,6 +59,9 @@ class FightDialog extends Application {
     // Local disadvantage overrides received via socket before flags sync.
     // Maps "groupId-actorId" → value
     this._localDisadvantage = {};
+    // Local stance overrides received via socket before flags sync.
+    // Maps "groupId-actorId" → value
+    this._localStance = {};
     // Tracks which group-volley combos have been revealed, for flip animation.
     // Seed from current flag state so existing reveals don't animate on open.
     this._previouslyRevealed = new Set();
@@ -221,6 +224,18 @@ class FightDialog extends Application {
           selected: i === actorDisadvantage,
         }));
 
+        const stanceLocalKey = `${group.id}-${actorId}`;
+        const stanceLocalOverride = this._localStance[stanceLocalKey];
+        const actorStance = stanceLocalOverride ?? (group.actorStance || {})[actorId] ?? "Neutral";
+        if (stanceLocalOverride != null && (group.actorStance || {})[actorId] === stanceLocalOverride) {
+          delete this._localStance[stanceLocalKey];
+        }
+        const stanceOptions = ["Neutral", "Aggressive", "Defensive"].map(s => ({
+          value: s,
+          label: s,
+          selected: s === actorStance,
+        }));
+
         return {
           actorId,
           name: actor?.name ?? "Unknown",
@@ -231,6 +246,7 @@ class FightDialog extends Application {
           isReady,
           volleys,
           disadvantageOptions,
+          stanceOptions,
         };
       });
 
@@ -298,8 +314,9 @@ class FightDialog extends Application {
       if (actor) actor.sheet.render(true);
     });
 
-    // All users can change disadvantage, click action cards, and ready button
+    // All users can change disadvantage/stance, click action cards, and ready button
     html.find(".actor-disadvantage-select").on("change", this._onActorDisadvantageChange.bind(this));
+    html.find(".actor-stance-select").on("change", this._onActorStanceChange.bind(this));
     html.find(".action-card.blank").on("click", this._onBlankCardClick.bind(this));
     html.find(".action-card.owned").on("click", this._onOwnedCardClick.bind(this));
     html.find(".ready-btn").on("click", this._onReadyClick.bind(this));
@@ -395,6 +412,41 @@ class FightDialog extends Application {
     }
   }
 
+  async _onActorStanceChange(event) {
+    const groupId = event.currentTarget.dataset.groupId;
+    const actorId = event.currentTarget.dataset.actorId;
+    const value = event.currentTarget.value;
+
+    // Broadcast to all other clients for immediate update
+    game.socket.emit(SOCKET_NAME, {
+      type: "stanceChange",
+      combatId: this.combat.id,
+      groupId,
+      actorId,
+      value,
+    });
+
+    if (game.user.isGM) {
+      // GM persists to combat flags (triggers updateCombat for all clients)
+      const groups = loadGroups(this.combat);
+      const group = groups.find(g => g.id === groupId);
+      if (group) {
+        if (!group.actorStance) group.actorStance = {};
+        group.actorStance[actorId] = value;
+        await saveGroups(this.combat, groups);
+      }
+    } else {
+      // Player can't write combat flags; user flag as fallback for GM to persist
+      await game.user.setFlag(FLAG_SCOPE, "pendingStance", {
+        combatId: this.combat.id,
+        groupId,
+        actorId,
+        value,
+        t: Date.now(),
+      });
+    }
+  }
+
   async _addActorToGroup(actorId, groupId) {
     const groups = loadGroups(this.combat);
     // Check not already assigned
@@ -418,6 +470,7 @@ class FightDialog extends Application {
     if (group) {
       group.actorIds = group.actorIds.filter(id => id !== actorId);
       if (group.actorDisadvantage) delete group.actorDisadvantage[actorId];
+      if (group.actorStance) delete group.actorStance[actorId];
       await saveGroups(this.combat, groups);
       // Clean local actions
       if (this.localActions[groupId]) delete this.localActions[groupId][actorId];
@@ -739,6 +792,10 @@ class FightDialog extends Application {
       case "disadvantageChange":
         this._handleDisadvantageChange(data);
         break;
+
+      case "stanceChange":
+        this._handleStanceChange(data);
+        break;
     }
   }
 
@@ -812,6 +869,26 @@ class FightDialog extends Application {
       if (group) {
         if (!group.actorDisadvantage) group.actorDisadvantage = {};
         group.actorDisadvantage[actorId] = value;
+        await saveGroups(this.combat, groups);
+      }
+    }
+
+    this.render(false);
+  }
+
+  async _handleStanceChange(data) {
+    const { groupId, actorId, value } = data;
+
+    // Store locally for immediate display on all clients
+    this._localStance[`${groupId}-${actorId}`] = value;
+
+    if (game.user.isGM) {
+      // GM persists to combat flags (triggers updateCombat for all clients)
+      const groups = loadGroups(this.combat);
+      const group = groups.find(g => g.id === groupId);
+      if (group) {
+        if (!group.actorStance) group.actorStance = {};
+        group.actorStance[actorId] = value;
         await saveGroups(this.combat, groups);
       }
     }
@@ -976,6 +1053,21 @@ Hooks.on("updateUser", (user, change) => {
       if (group) {
         if (!group.actorDisadvantage) group.actorDisadvantage = {};
         group.actorDisadvantage[actorId] = value;
+        saveGroups(combat, groups);
+      }
+    }
+  }
+
+  const pendingStance = user.getFlag(FLAG_SCOPE, "pendingStance");
+  if (pendingStance) {
+    const { combatId, groupId, actorId, value } = pendingStance;
+    const combat = game.combats.get(combatId);
+    if (combat) {
+      const groups = loadGroups(combat);
+      const group = groups.find(g => g.id === groupId);
+      if (group) {
+        if (!group.actorStance) group.actorStance = {};
+        group.actorStance[actorId] = value;
         saveGroups(combat, groups);
       }
     }
