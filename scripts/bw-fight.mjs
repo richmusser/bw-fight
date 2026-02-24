@@ -59,6 +59,15 @@ class FightDialog extends Application {
     // Local disadvantage overrides received via socket before flags sync.
     // Maps "groupId-actorId" → value
     this._localDisadvantage = {};
+    // Tracks which group-volley combos have been revealed, for flip animation.
+    // Seed from current flag state so existing reveals don't animate on open.
+    this._previouslyRevealed = new Set();
+    const existingRevealed = loadRevealed(combat);
+    for (const [groupId, volleys] of Object.entries(existingRevealed)) {
+      for (const vi of Object.keys(volleys)) {
+        this._previouslyRevealed.add(`${groupId}-${vi}`);
+      }
+    }
     // Pending reveal callbacks
     this._pendingRevealResolvers = {};
   }
@@ -294,6 +303,42 @@ class FightDialog extends Application {
     html.find(".action-card.blank").on("click", this._onBlankCardClick.bind(this));
     html.find(".action-card.owned").on("click", this._onOwnedCardClick.bind(this));
     html.find(".ready-btn").on("click", this._onReadyClick.bind(this));
+
+    // Apply flip animation to newly revealed cards
+    this._applyFlipAnimation(html);
+  }
+
+  _applyFlipAnimation(html) {
+    const revealed = loadRevealed(this.combat);
+    const currentRevealed = new Set();
+
+    for (const [groupId, volleys] of Object.entries(revealed)) {
+      for (const vi of Object.keys(volleys)) {
+        currentRevealed.add(`${groupId}-${vi}`);
+      }
+    }
+
+    // Find newly revealed volleys (in current but not in previous)
+    const newlyRevealed = new Set();
+    for (const key of currentRevealed) {
+      if (!this._previouslyRevealed.has(key)) {
+        newlyRevealed.add(key);
+      }
+    }
+
+    // Add flip-in class to cards in newly revealed volleys
+    if (newlyRevealed.size > 0) {
+      html.find(".action-card.revealed").each((_, el) => {
+        const groupId = el.dataset.groupId;
+        const volley = el.dataset.volley;
+        if (newlyRevealed.has(`${groupId}-${volley}`)) {
+          el.classList.add("flip-in");
+        }
+      });
+    }
+
+    // Update tracking set
+    this._previouslyRevealed = currentRevealed;
   }
 
   async _onShowToPlayers() {
@@ -420,6 +465,13 @@ class FightDialog extends Application {
         if (key.startsWith(`${groupId}-`)) {
           delete this._remoteCardCounts[key];
         }
+      }
+    }
+
+    // Reset flip animation tracking so reveals animate again
+    for (const key of this._previouslyRevealed) {
+      if (key.startsWith(`${groupId}-`)) {
+        this._previouslyRevealed.delete(key);
       }
     }
 
@@ -660,8 +712,10 @@ class FightDialog extends Application {
       }
     }
 
-    // GM re-renders immediately; other clients re-render via updateCombat hook
-    this.render(false);
+    // All clients (including GM) re-render via updateCombat hook triggered by saveRevealed.
+    // Do NOT call this.render(false) here — it would cause a double render that kills
+    // the flip animation (the first render from the hook adds flip-in and updates
+    // _previouslyRevealed, then the second render replaces the DOM without flip-in).
   }
 
   // ---- Socket Handlers ----
@@ -775,6 +829,12 @@ class FightDialog extends Application {
         if (key.startsWith(`${groupId}-`)) {
           delete this._remoteCardCounts[key];
         }
+      }
+    }
+    // Reset flip animation tracking so reveals animate again
+    for (const key of this._previouslyRevealed) {
+      if (key.startsWith(`${groupId}-`)) {
+        this._previouslyRevealed.delete(key);
       }
     }
     // Defer render slightly so flag sync from updateCombat arrives first
