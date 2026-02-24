@@ -156,7 +156,7 @@ class FightDialog extends Application {
       template: "modules/bw-fight/templates/fight-dialog.hbs",
       classes: ["bw-fight-dialog"],
       width: 720,
-      height: "auto",
+      height: 600,
       resizable: true,
       title: "Fight!",
     });
@@ -206,7 +206,7 @@ class FightDialog extends Application {
       return {
         actorId,
         name: actor?.name ?? "Unknown",
-        img: actor?.img ?? "icons/svg/mystery-man.svg",
+        img: actor?.prototypeToken?.texture?.src ?? actor?.img ?? "icons/svg/mystery-man.svg",
         assigned: assignedSet.has(actorId),
       };
     });
@@ -329,7 +329,7 @@ class FightDialog extends Application {
         return {
           actorId,
           name: actor?.name ?? "Unknown",
-          img: actor?.img ?? "icons/svg/mystery-man.svg",
+          img: actor?.prototypeToken?.texture?.src ?? actor?.img ?? "icons/svg/mystery-man.svg",
           woundedDice: actor?.system?.pgts?.woundedDice ?? 0,
           obstaclePenalty: actor?.system?.pgts?.obstaclePenalties ?? 0,
           isOwner,
@@ -368,6 +368,7 @@ class FightDialog extends Application {
     if (game.user.isGM) {
       html.find(".add-group").on("click", this._onAddGroup.bind(this));
       html.find(".show-to-players").on("click", this._onShowToPlayers.bind(this));
+      html.find(".reset-fight").on("click", this._onResetFight.bind(this));
       html.find(".remove-from-group").on("click", this._onRemoveFromGroup.bind(this));
       html.find(".remove-group").on("click", this._onRemoveGroup.bind(this));
       html.find(".reveal-volley").on("click", this._onRevealVolley.bind(this));
@@ -451,6 +452,46 @@ class FightDialog extends Application {
 
   async _onShowToPlayers() {
     await this.combat.setFlag(FLAG_SCOPE, "showDialog", Date.now());
+  }
+
+  async _onResetFight() {
+    if (!game.user.isGM) return;
+    const confirm = await Dialog.confirm({
+      title: "Reset Fight",
+      content: "<p>Reset the entire fight? All groups, scripted actions and revealed data will be lost.</p>",
+    });
+    if (!confirm) return;
+
+    // Clear all combat flags
+    const flagPrefix = `flags.${FLAG_SCOPE}`;
+    await this.combat.update({
+      [`${flagPrefix}.-=${FLAG_GROUPS}`]: null,
+      [`${flagPrefix}.-=${FLAG_REVEALED}`]: null,
+      [`${flagPrefix}.-=${FLAG_READY}`]: null,
+      [`${flagPrefix}.-=${FLAG_SCRIPTED}`]: null,
+    });
+
+    // Clear all local state
+    this.localActions = {};
+    this._pendingReadyLocal = {};
+    this._localDisadvantage = {};
+    this._localStance = {};
+    this._previouslyRevealed = new Set();
+    this._pendingRevealResolvers = {};
+    if (this._remoteCardCounts) this._remoteCardCounts = {};
+
+    // Create a fresh empty group
+    const groups = [{
+      id: foundry.utils.randomID(),
+      name: "Group 1",
+      actorIds: [],
+      exchange: 1,
+    }];
+    await saveGroups(this.combat, groups);
+
+    // Notify other clients to reset
+    this._emitGroupsUpdated();
+    this.render(false);
   }
 
   // ---- GM Group Management ----
@@ -556,6 +597,13 @@ class FightDialog extends Application {
   async _onRemoveFromGroup(event) {
     const groupId = event.currentTarget.dataset.groupId;
     const actorId = event.currentTarget.dataset.actorId;
+    const actor = game.actors.get(actorId);
+    const confirm = await Dialog.confirm({
+      title: "Remove Actor",
+      content: `<p>Remove <strong>${actor?.name ?? "this actor"}</strong> from the group?</p>`,
+    });
+    if (!confirm) return;
+
     const groups = loadGroups(this.combat);
     const group = groups.find(g => g.id === groupId);
     if (group) {
@@ -572,9 +620,17 @@ class FightDialog extends Application {
 
   async _onRemoveGroup(event) {
     const groupId = event.currentTarget.dataset.groupId;
-    const groups = loadGroups(this.combat).filter(g => g.id !== groupId);
+    const groups = loadGroups(this.combat);
+    const group = groups.find(g => g.id === groupId);
+    const confirm = await Dialog.confirm({
+      title: "Remove Group",
+      content: `<p>Remove <strong>${group?.name ?? "this group"}</strong> and all its contents?</p>`,
+    });
+    if (!confirm) return;
+
+    const remaining = groups.filter(g => g.id !== groupId);
     delete this.localActions[groupId];
-    await saveGroups(this.combat, groups);
+    await saveGroups(this.combat, remaining);
     this._emitGroupsUpdated();
     this.render(false);
   }
@@ -846,24 +902,38 @@ class FightDialog extends Application {
       if (actions.length > 0) collected[actorId] = [...actions];
     }
 
-    // Store pending collection for updateUser handler to fill
-    const key = `${groupId}-${volleyIndex}`;
-    this._pendingRevealResolvers[key] = { collected };
-
-    // Request actions from players via combat flag (reliable, unlike sockets)
-    await this.combat.setFlag(FLAG_SCOPE, "pendingReveal", {
-      groupId,
-      volleyIndex,
-      t: Date.now(),
+    // Check if any non-GM players might have unscripted actions to submit
+    const readyData = loadReady(this.combat);
+    const groupReady = readyData[groupId] || {};
+    const needsPlayerInput = (group.actorIds || []).some(actorId => {
+      if (collected[actorId]?.length > 0) return false; // Already have actions
+      const actor = game.actors.get(actorId);
+      if (!actor) return false;
+      if (actor.isOwner) return false; // GM owns this actor
+      if (groupReady[actorId]) return false; // Already submitted via Ready
+      return true; // Non-GM actor without scripted actions
     });
 
-    // Wait for player submissions via updateUser hook
-    await new Promise(resolve => {
-      this._pendingRevealResolvers[key].resolve = resolve;
-      this._pendingRevealResolvers[key].timer = setTimeout(resolve, 3000);
-    });
+    if (needsPlayerInput) {
+      // Store pending collection for updateUser handler to fill
+      const key = `${groupId}-${volleyIndex}`;
+      this._pendingRevealResolvers[key] = { collected };
 
-    delete this._pendingRevealResolvers[key];
+      // Request actions from players via combat flag (reliable, unlike sockets)
+      await this.combat.setFlag(FLAG_SCOPE, "pendingReveal", {
+        groupId,
+        volleyIndex,
+        t: Date.now(),
+      });
+
+      // Wait for player submissions via updateUser hook
+      await new Promise(resolve => {
+        this._pendingRevealResolvers[key].resolve = resolve;
+        this._pendingRevealResolvers[key].timer = setTimeout(resolve, 30);
+      });
+
+      delete this._pendingRevealResolvers[key];
+    }
 
     // Save revealed actions
     const revealed = loadRevealed(this.combat);

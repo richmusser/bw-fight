@@ -3,6 +3,7 @@
   <div class="fight-toolbar">
     <button type="button" class="add-group"><i class="fas fa-plus"></i> Add Fighting Group</button>
     <button type="button" class="show-to-players"><i class="fas fa-users"></i> Show</button>
+    <button type="button" class="reset-fight"><i class="fas fa-undo"></i> Reset</button>
   </div>
 
   <div class="unassigned-section">
@@ -10,7 +11,7 @@
     <div class="unassigned-actors">
       {{#each allCombatants}}
       <span class="combatant-draggable {{#if assigned}}assigned{{/if}}" draggable="{{#unless assigned}}true{{else}}false{{/unless}}" data-actor-id="{{actorId}}">
-        <img src="{{img}}" alt="{{name}}" class="actor-thumb" />
+        <img src="{{img}}" alt="{{name}}" class="actor-thumb" draggable="false" />
         {{name}}
       </span>
       {{/each}}
