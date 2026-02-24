@@ -56,6 +56,9 @@ class FightDialog extends Application {
     // Tracks actors whose Ready has been sent but not yet saved to combat flags.
     // Maps "groupId-actorId" → actions array so we can render locked cards locally.
     this._pendingReadyLocal = {};
+    // Local disadvantage overrides received via socket before flags sync.
+    // Maps "groupId-actorId" → value
+    this._localDisadvantage = {};
     // Pending reveal callbacks
     this._pendingRevealResolvers = {};
   }
@@ -139,12 +142,23 @@ class FightDialog extends Application {
           delete this._pendingReadyLocal[pendingReadyKey];
         }
 
+        // Compute max card count across all volleys for uniform hidden card display
+        const hasScripted = scriptedActions.some(v => v && v.length > 0);
+        const readySource = hasScripted ? scriptedActions : pendingReadyActions;
+        const maxReadyCards = isReady && readySource
+          ? Math.max(...[0, 1, 2].map(vi => (readySource[vi] || []).length), 1)
+          : 1;
+
         const volleys = [0, 1, 2].map(vi => {
           const volleyRevealed = groupRevealed[vi];
           if (volleyRevealed && volleyRevealed[actorId]) {
+            const revealedActions = volleyRevealed[actorId];
+            // Pad with "No Action" so all revealed volleys show the same count
+            const padded = [...revealedActions];
+            while (padded.length < maxReadyCards) padded.push("No Action");
             return {
               volleyIndex: vi,
-              cards: volleyRevealed[actorId].map(a => ({
+              cards: padded.map(a => ({
                 action: a,
                 state: "revealed",
                 isHidden: false,
@@ -154,11 +168,11 @@ class FightDialog extends Application {
             };
           }
 
-          // If actor is ready, show a single face-down card until revealed
+          // If actor is ready, show uniform hidden cards across all volleys
           if (isReady) {
             return {
               volleyIndex: vi,
-              cards: [{ action: "", state: "hidden", isHidden: true }],
+              cards: Array.from({ length: maxReadyCards }, () => ({ action: "", state: "hidden", isHidden: true })),
               canScript: false,
               isRevealed: false,
             };
@@ -185,7 +199,13 @@ class FightDialog extends Application {
           };
         });
 
-        const actorDisadvantage = (group.actorDisadvantage || {})[actorId] || 0;
+        const localKey = `${group.id}-${actorId}`;
+        const localOverride = this._localDisadvantage[localKey];
+        const actorDisadvantage = localOverride ?? (group.actorDisadvantage || {})[actorId] ?? 0;
+        // Clear local override once flags have caught up
+        if (localOverride != null && (group.actorDisadvantage || {})[actorId] === localOverride) {
+          delete this._localDisadvantage[localKey];
+        }
         const disadvantageOptions = Array.from({ length: 6 }, (_, i) => ({
           value: i,
           label: `+${i} Ob`,
@@ -300,7 +320,17 @@ class FightDialog extends Application {
     const actorId = event.currentTarget.dataset.actorId;
     const value = parseInt(event.currentTarget.value);
 
+    // Broadcast to all other clients for immediate update
+    game.socket.emit(SOCKET_NAME, {
+      type: "disadvantageChange",
+      combatId: this.combat.id,
+      groupId,
+      actorId,
+      value,
+    });
+
     if (game.user.isGM) {
+      // GM persists to combat flags (triggers updateCombat for all clients)
       const groups = loadGroups(this.combat);
       const group = groups.find(g => g.id === groupId);
       if (group) {
@@ -309,15 +339,7 @@ class FightDialog extends Application {
         await saveGroups(this.combat, groups);
       }
     } else {
-      // Players can't write combat flags; use both user flags and socket
-      // for maximum reliability
-      game.socket.emit(SOCKET_NAME, {
-        type: "disadvantageChange",
-        combatId: this.combat.id,
-        groupId,
-        actorId,
-        value,
-      });
+      // Player can't write combat flags; user flag as fallback for GM to persist
       await game.user.setFlag(FLAG_SCOPE, "pendingDisadvantage", {
         combatId: this.combat.id,
         groupId,
@@ -724,15 +746,23 @@ class FightDialog extends Application {
   }
 
   async _handleDisadvantageChange(data) {
-    if (!game.user.isGM) return; // Only GM writes combat flags
     const { groupId, actorId, value } = data;
-    const groups = loadGroups(this.combat);
-    const group = groups.find(g => g.id === groupId);
-    if (group) {
-      if (!group.actorDisadvantage) group.actorDisadvantage = {};
-      group.actorDisadvantage[actorId] = value;
-      await saveGroups(this.combat, groups);
+
+    // Store locally for immediate display on all clients
+    this._localDisadvantage[`${groupId}-${actorId}`] = value;
+
+    if (game.user.isGM) {
+      // GM persists to combat flags (triggers updateCombat for all clients)
+      const groups = loadGroups(this.combat);
+      const group = groups.find(g => g.id === groupId);
+      if (group) {
+        if (!group.actorDisadvantage) group.actorDisadvantage = {};
+        group.actorDisadvantage[actorId] = value;
+        await saveGroups(this.combat, groups);
+      }
     }
+
+    this.render(false);
   }
 
   _handleNextExchange(data) {
@@ -804,6 +834,9 @@ Hooks.once("ready", () => {
 
 // Re-render dialog when combat flags change (ensures revealed data syncs to all clients)
 Hooks.on("updateCombat", (combat, change) => {
+
+  console.log("Combat updated", combat.id, change);
+
   if (!change?.flags?.[FLAG_SCOPE]) return;
 
   // If showDialog flag changed, open the dialog for non-GM clients

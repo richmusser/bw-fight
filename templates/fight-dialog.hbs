@@ -76,13 +76,13 @@
             <div class="actor-info">
               <span class="actor-name">{{name}}</span>
               {{#if obstaclePenalty}}
-              <span class="wound-penalty" title="Wound Penalties">+{{obstaclePenalty}}Ob / -{{woundedDice}} D</span>
+              <span class="wound-penalty" title="Wound Penalties">+{{obstaclePenalty}} Ob / -{{woundedDice}} D</span>
               {{else if woundedDice}}
               <span class="wound-penalty" title="Wound Penalties">-{{woundedDice}}D</span>
               {{/if}}
               <div class="actor-disadvantage">
                 <label>Disadvantage:</label>
-                <select class="actor-disadvantage-select" data-group-id="{{../../id}}" data-actor-id="{{actorId}}">
+                <select class="actor-disadvantage-select" data-group-id="{{../id}}" data-actor-id="{{actorId}}">
                   {{#each disadvantageOptions}}
                   <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
                   {{/each}}
