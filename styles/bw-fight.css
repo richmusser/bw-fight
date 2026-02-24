@@ -25,9 +25,8 @@
 }
 
 /* Fight dialog */
-.bw-fight-dialog {
-  max-height: 90vh;
-}
+/* .bw-fight-dialog {
+} */
 
 .bw-fight-dialog .window-content {
   padding: 8px;
