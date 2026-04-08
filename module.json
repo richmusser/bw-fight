@@ -1,0 +1,21 @@
+{
+  "id": "bw-fight",
+  "title": "Burning Wheel Fight",
+  "description": "Implements the Fight! system for the Burning Wheel RPG.",
+  "version": "1.0.0",
+  "compatibility": {
+    "minimum": "12",
+    "verified": "12"
+  },
+  "esmodules": ["scripts/bw-fight.mjs"],
+  "styles": ["styles/bw-fight.css"],
+  "socket": true,
+  "authors": [
+    {
+      "name": "Author"
+    }
+  ],
+  "flags": {},
+  "manifest": "https://raw.githubusercontent.com/richmusser/bw-fight/refs/heads/main/module.json",
+  "download": "https://github.com/richmusser/bw-fight/archive/refs/tags/1.0.0.zip"
+}

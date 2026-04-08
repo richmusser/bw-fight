@@ -1,0 +1,169 @@
+<div class="fight-dialog-content">
+  {{#if isGM}}
+  <div class="fight-toolbar">
+    <button type="button" class="add-group"><i class="fas fa-plus"></i> Add Fighting Group</button>
+    <button type="button" class="show-to-players"><i class="fas fa-users"></i> Show</button>
+    <button type="button" class="reset-fight"><i class="fas fa-undo"></i> Reset</button>
+  </div>
+
+  <div class="unassigned-section">
+    <h3>Combatants</h3>
+    <div class="unassigned-actors">
+      {{#each allCombatants}}
+      <span class="combatant-draggable {{#if assigned}}assigned{{/if}}" draggable="{{#unless assigned}}true{{else}}false{{/unless}}" data-combatant-id="{{combatantId}}">
+        <img src="{{img}}" alt="{{name}}" class="actor-thumb" draggable="false" />
+        {{name}}
+      </span>
+      {{/each}}
+    </div>
+  </div>
+  {{/if}}
+
+  {{#each groups}}
+  <section class="fight-group" data-group-id="{{id}}">
+    <div class="group-header">
+      <h3 style="flex:1">{{name}}</h3>
+      <span class="exchange-counter">Exchange {{exchange}}</span>
+      {{#if ../isGM}}
+      <button type="button" class="next-exchange" data-group-id="{{id}}" title="Next Exchange">
+        <i class="fas fa-forward"></i> Next Exchange
+      </button>
+      <button type="button" class="remove-group" data-group-id="{{id}}" title="Remove Group">
+        <i class="fas fa-trash"></i>
+      </button>
+      {{/if}}
+    </div>
+
+    {{#if hasActors}}
+    <table class="volley-grid">
+      <thead>
+        <tr>
+          <th class="col-actor">Actor</th>
+          <th class="col-volley">
+            Volley 1
+            {{#if ../isGM}}
+              {{#unless (lookup volleyRevealed 0)}}
+              <button type="button" class="reveal-volley" data-group-id="{{id}}" data-volley="0" title="Reveal Volley 1"><i class="fas fa-eye"></i></button>
+              {{/unless}}
+            {{/if}}
+          </th>
+          <th class="col-volley">
+            Volley 2
+            {{#if ../isGM}}
+              {{#unless (lookup volleyRevealed 1)}}
+              <button type="button" class="reveal-volley" data-group-id="{{id}}" data-volley="1" title="Reveal Volley 2"><i class="fas fa-eye"></i></button>
+              {{/unless}}
+            {{/if}}
+          </th>
+          <th class="col-volley">
+            Volley 3
+            {{#if ../isGM}}
+              {{#unless (lookup volleyRevealed 2)}}
+              <button type="button" class="reveal-volley" data-group-id="{{id}}" data-volley="2" title="Reveal Volley 3"><i class="fas fa-eye"></i></button>
+              {{/unless}}
+            {{/if}}
+          </th>
+          <th class="col-ready"></th>
+          {{#if ../isGM}}
+          <th class="col-remove"></th>
+          {{/if}}
+        </tr>
+      </thead>
+      <tbody>
+        {{#each actors}}
+        <tr>
+          <td class="actor-cell">
+            <img src="{{img}}" alt="{{name}}" class="actor-thumb" />
+            <div class="actor-info">
+              <div class="actor-name-row">
+                <span class="actor-name">{{name}}</span>
+                {{#if obstaclePenalty}}
+                <span class="wound-penalty" title="Wound Penalties">+{{obstaclePenalty}} Ob / -{{woundedDice}} D</span>
+                {{else if woundedDice}}
+                <span class="wound-penalty" title="Wound Penalties">-{{woundedDice}}D</span>
+                {{/if}}
+              </div>
+              <div class="actor-disadvantage">
+                <label>Disadvantage:</label>
+                <select class="actor-disadvantage-select" data-group-id="{{../id}}" data-combatant-id="{{combatantId}}">
+                  {{#each disadvantageOptions}}
+                  <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+                  {{/each}}
+                </select>
+              </div>
+              <div class="actor-stance">
+                <label>Stance:</label>
+                <select class="actor-stance-select" data-group-id="{{../id}}" data-combatant-id="{{combatantId}}">
+                  {{#each stanceOptions}}
+                  <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+                  {{/each}}
+                </select>
+              </div>
+            </div>
+          </td>
+          {{#each volleys}}
+          <td>
+            <div class="volley-cell">
+              {{#each cards}}
+              <div class="action-card {{state}}"
+                data-group-id="{{../../../id}}"
+                data-combatant-id="{{../../combatantId}}"
+                data-volley="{{../volleyIndex}}"
+                data-card-index="{{@index}}"
+                {{#if description}}title="{{description}}"{{/if}}>
+                {{#if isHidden}}
+                  <span class="card-back"></span>
+                {{else}}
+                  {{#if description}}
+                  <i class="fas fa-comment card-chat-btn" title="Send to chat"></i>
+                  {{/if}}
+                  <span class="card-label">{{action}}</span>
+                  {{#if subtext}}
+                  <span class="card-subtext">{{subtext}}</span>
+                  {{/if}}
+                {{/if}}
+              </div>
+              {{/each}}
+              {{#if canScript}}
+              <div class="action-card blank"
+                data-group-id="{{../../id}}"
+                data-combatant-id="{{../combatantId}}"
+                data-volley="{{volleyIndex}}">
+                <i class="fas fa-plus"></i>
+              </div>
+              {{/if}}
+            </div>
+          </td>
+          {{/each}}
+          <td class="ready-cell">
+            {{#if isReady}}
+              <span class="ready-locked" title="Locked"><i class="fas fa-lock"></i></span>
+            {{else}}
+              {{#if isOwner}}
+              <button type="button" class="ready-btn" data-group-id="{{../id}}" data-combatant-id="{{combatantId}}" title="Lock in actions">Ready</button>
+              {{/if}}
+            {{/if}}
+          </td>
+          {{#if ../../isGM}}
+          <td class="actor-actions-cell">
+            <button type="button" class="remove-from-group" data-group-id="{{../id}}" data-combatant-id="{{combatantId}}" title="Remove"><i class="fas fa-times"></i></button>
+            <div class="actor-reorder">
+              <button type="button" class="move-actor-up" data-group-id="{{../id}}" data-combatant-id="{{combatantId}}" title="Move up"><i class="fas fa-chevron-up"></i></button>
+              <button type="button" class="move-actor-down" data-group-id="{{../id}}" data-combatant-id="{{combatantId}}" title="Move down"><i class="fas fa-chevron-down"></i></button>
+            </div>
+          </td>
+          {{/if}}
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+    {{else}}
+    <div class="group-drop-zone">Drop combatant here</div>
+    {{/if}}
+  </section>
+  {{/each}}
+
+  {{#unless hasGroups}}
+  <p class="no-groups">Click "Add Fighting Group" to begin.</p>
+  {{/unless}}
+</div>
