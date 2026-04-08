@@ -121,12 +121,16 @@ function loadScripted(combat) {
   return raw ? foundry.utils.duplicate(raw) : {};
 }
 
+// ---- FightDialog Registry (survives PopOut removing the dialog from ui.windows) ----
+const _fightDialogs = new Map();
+
 // ---- FightDialog ----
 
 class FightDialog extends Application {
   constructor(combat, options = {}) {
     super(options);
     this.combat = combat;
+    _fightDialogs.set(combat.id, this);
     // Local (unrevealed) actions: { [groupId]: { [combatantId]: [[], [], []] } }
     this.localActions = {};
     // Tracks combatants whose Ready has been sent but not yet saved to combat flags.
@@ -164,6 +168,11 @@ class FightDialog extends Application {
 
   get id() {
     return `bw-fight-${this.combat.id}`;
+  }
+
+  async close(...args) {
+    _fightDialogs.delete(this.combat.id);
+    return super.close(...args);
   }
 
   async _render(...args) {
@@ -802,14 +811,17 @@ class FightDialog extends Application {
   }
 
   _showActionPicker(anchorEl, groupId, combatantId, volleyIndex) {
-    // Remove any existing picker
-    document.querySelectorAll(".bw-action-picker").forEach(el => el.remove());
+    // Use the anchor element's document so this works in pop-out windows
+    const doc = anchorEl.ownerDocument;
 
-    const picker = document.createElement("div");
+    // Remove any existing picker
+    doc.querySelectorAll(".bw-action-picker").forEach(el => el.remove());
+
+    const picker = doc.createElement("div");
     picker.classList.add("bw-action-picker");
 
     for (const action of ACTIONS) {
-      const btn = document.createElement("button");
+      const btn = doc.createElement("button");
       btn.type = "button";
       btn.textContent = action.subtext ? `${action.name} (${action.subtext})` : action.name;
       btn.classList.add("action-pick-btn");
@@ -822,7 +834,7 @@ class FightDialog extends Application {
     }
 
     // Position near the clicked element
-    document.body.appendChild(picker);
+    doc.body.appendChild(picker);
     const rect = anchorEl.getBoundingClientRect();
     picker.style.position = "fixed";
     picker.style.left = `${rect.left}px`;
@@ -833,10 +845,10 @@ class FightDialog extends Application {
     const closeHandler = (e) => {
       if (!picker.contains(e.target)) {
         picker.remove();
-        document.removeEventListener("pointerdown", closeHandler, true);
+        doc.removeEventListener("pointerdown", closeHandler, true);
       }
     };
-    setTimeout(() => document.addEventListener("pointerdown", closeHandler, true), 0);
+    setTimeout(() => doc.addEventListener("pointerdown", closeHandler, true), 0);
   }
 
   _scriptAction(groupId, combatantId, volleyIndex, action) {
@@ -1171,7 +1183,7 @@ class FightDialog extends Application {
 // ---- Global Dialog Registry ----
 
 function findFightDialog(combatId) {
-  return Object.values(ui.windows).find(w => w.id === `bw-fight-${combatId}`);
+  return _fightDialogs.get(combatId) ?? null;
 }
 
 // ---- Hooks ----
@@ -1291,8 +1303,8 @@ Hooks.on("updateUser", (user, change) => {
 
 // Re-render dialog when actor data changes (e.g. wound penalties)
 Hooks.on("updateActor", () => {
-  for (const win of Object.values(ui.windows)) {
-    if (win instanceof FightDialog) win.render(false);
+  for (const dialog of _fightDialogs.values()) {
+    dialog.render(false);
   }
 });
 
