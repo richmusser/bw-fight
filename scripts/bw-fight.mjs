@@ -325,6 +325,8 @@ class FightDialog extends Application {
           selected: s === combatantStance,
         }));
 
+        const isPC = combatant?.hasPlayerOwner ?? false;
+
         return {
           combatantId,
           name: tokenDoc?.name ?? actor?.name ?? "Unknown",
@@ -333,6 +335,7 @@ class FightDialog extends Application {
           obstaclePenalty: actor?.system?.pgts?.obstaclePenalties ?? 0,
           isOwner,
           isReady,
+          isPC,
           volleys,
           disadvantageOptions,
           stanceOptions,

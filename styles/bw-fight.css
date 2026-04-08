@@ -200,27 +200,64 @@
   vertical-align: top;
 }
 
-.volley-grid .col-actor {
-  width: 25%;
-  min-width: 270px;
+.volley-grid .col-actor-left,
+.volley-grid .col-actor-right {
+  width: 18%;
+  min-width: 200px;
 }
 
 .volley-grid .col-volley {
-  width: 22%;
-}
-
-.volley-grid .col-ready {
-  width: 50px;
-}
-
-.volley-grid .col-remove {
-  width: 28px;
+  width: 20%;
 }
 
 .volley-grid .actor-cell {
+  vertical-align: middle;
+}
+
+.volley-grid .actor-cell-inner {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+}
+
+.volley-grid .actor-cell-right .actor-cell-inner {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.volley-grid .actor-cell-right .actor-info {
+  align-items: flex-end;
+}
+
+.volley-grid .actor-cell-right .actor-name-row {
+  justify-content: flex-end;
+}
+
+.volley-grid .actor-cell-right .actor-disadvantage,
+.volley-grid .actor-cell-right .actor-stance {
+  flex-direction: row-reverse;
+}
+
+.volley-grid .actor-cell-right .actor-disadvantage select,
+.volley-grid .actor-cell-right .actor-stance select {
+  margin-left: 0;
+  margin-right: 10px;
+}
+
+.actor-side-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.actor-gm-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  flex-shrink: 0;
 }
 
 .volley-grid .actor-cell .actor-thumb {
@@ -282,6 +319,15 @@
 
 .actor-actions-cell {
   text-align: center;
+}
+
+/* Column header alignment for PC/NPC sides */
+.volley-grid .col-actor-left {
+  text-align: left;
+}
+
+.volley-grid .col-actor-right {
+  text-align: right;
 }
 
 .volley-grid .remove-from-group {
