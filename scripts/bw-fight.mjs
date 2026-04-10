@@ -1190,10 +1190,16 @@ function findFightDialog(combatId) {
 
 Hooks.once("ready", () => {
   game.socket.on(SOCKET_NAME, (data) => {
-    if (!data.combatId) return;
-    const dialog = findFightDialog(data.combatId);
-    if (dialog) dialog._handleSocket(data);
+    // Dispatch to all subsystems via a shared hook
+    Hooks.callAll("bw-fight-socket", data);
   });
+});
+
+// Fight dialog socket handler
+Hooks.on("bw-fight-socket", (data) => {
+  if (!data.combatId) return;
+  const dialog = findFightDialog(data.combatId);
+  if (dialog) dialog._handleSocket(data);
 });
 
 // Re-render dialog when combat flags change (ensures revealed data syncs to all clients)

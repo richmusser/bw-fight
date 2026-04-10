@@ -153,12 +153,9 @@ class DowDialog extends Application {
         delete this._pendingReadyLocal[group.id];
       }
 
-      // Determine if current user can script for this group
-      // (GM or owner of any combatant in the group)
-      const isGroupOwner = isGM || (group.combatantIds || []).some(cid => {
-        const c = this.combat.combatants.get(cid);
-        return c?.isOwner;
-      });
+      // GM controls group 1 (index 0), non-GM players control group 2 (index 1)
+      const groupIndex = groups.indexOf(group);
+      const isGroupOwner = isGM ? groupIndex === 0 : groupIndex === 1;
 
       const actors = (group.combatantIds || []).map(combatantId => {
         const combatant = this.combat.combatants.get(combatantId);
@@ -245,9 +242,11 @@ class DowDialog extends Application {
         name: group.name,
         actors,
         hasActors: actors.length > 0,
+        isFirstGroup: groupIndex === 0,
         volleys,
         volleyRevealed,
         isReady,
+        isGroupOwner,
         canReady: isGroupOwner && !isReady,
         exchange: group.exchange || 1,
         boa,
@@ -256,12 +255,19 @@ class DowDialog extends Application {
 
     const terms = this.combat.getFlag(FLAG_SCOPE, "dow-terms") || "";
 
+    // Shared exchange and reveal state (from first group)
+    const firstGroup = groupsData[0];
+    const exchange = firstGroup?.exchange || 1;
+    const volleyRevealed = firstGroup?.volleyRevealed || [false, false, false];
+
     const data = {
       allCombatants,
       groups: groupsData,
       hasGroups: groupsData.length > 0,
       isGM,
       terms,
+      exchange,
+      volleyRevealed,
     };
     return this._applyRemoteCardCounts(data);
   }
@@ -522,42 +528,40 @@ class DowDialog extends Application {
 
   async _onNextExchange(event) {
     if (!game.user.isGM) return;
-    const groupId = event.currentTarget.dataset.groupId;
 
     const groups = loadGroups(this.combat);
-    const group = groups.find(g => g.id === groupId);
-    if (group) {
-      group.exchange = (group.exchange || 1) + 1;
-      await saveGroups(this.combat, groups);
-    }
-
     const flagPrefix = `flags.${FLAG_SCOPE}`;
-    await this.combat.update({
-      [`${flagPrefix}.${FLAG_REVEALED}.-=${groupId}`]: null,
-      [`${flagPrefix}.${FLAG_READY}.-=${groupId}`]: null,
-      [`${flagPrefix}.${FLAG_SCRIPTED}.-=${groupId}`]: null,
-    });
+    const updateData = {};
 
-    delete this.localActions[groupId];
+    for (const group of groups) {
+      group.exchange = (group.exchange || 1) + 1;
+      updateData[`${flagPrefix}.${FLAG_REVEALED}.-=${group.id}`] = null;
+      updateData[`${flagPrefix}.${FLAG_READY}.-=${group.id}`] = null;
+      updateData[`${flagPrefix}.${FLAG_SCRIPTED}.-=${group.id}`] = null;
 
-    if (this._remoteCardCounts) {
-      for (const key of Object.keys(this._remoteCardCounts)) {
-        if (key.startsWith(`${groupId}-`)) {
-          delete this._remoteCardCounts[key];
+      delete this.localActions[group.id];
+
+      if (this._remoteCardCounts) {
+        for (const key of Object.keys(this._remoteCardCounts)) {
+          if (key.startsWith(`${group.id}-`)) {
+            delete this._remoteCardCounts[key];
+          }
+        }
+      }
+
+      for (const key of this._previouslyRevealed) {
+        if (key.startsWith(`${group.id}-`)) {
+          this._previouslyRevealed.delete(key);
         }
       }
     }
 
-    for (const key of this._previouslyRevealed) {
-      if (key.startsWith(`${groupId}-`)) {
-        this._previouslyRevealed.delete(key);
-      }
-    }
+    await saveGroups(this.combat, groups);
+    await this.combat.update(updateData);
 
     game.socket.emit(SOCKET_NAME, {
       type: "dow-nextExchange",
       combatId: this.combat.id,
-      groupId,
     });
     this.render(false);
   }
@@ -695,6 +699,13 @@ class DowDialog extends Application {
     delete this.localActions[groupId];
     this.render(false);
 
+    // Notify other clients immediately so they see hidden cards
+    game.socket.emit(SOCKET_NAME, {
+      type: "dow-ready",
+      combatId: this.combat.id,
+      groupId,
+    });
+
     if (game.user.isGM) {
       await this._saveReadyState(groupId, actions);
       delete this._pendingReadyLocal[groupId];
@@ -722,61 +733,59 @@ class DowDialog extends Application {
 
   async _onRevealVolley(event) {
     if (!game.user.isGM) return;
-    const groupId = event.currentTarget.dataset.groupId;
     const volleyIndex = parseInt(event.currentTarget.dataset.volley);
 
-    // Check scripted (ready) actions first
+    const groups = loadGroups(this.combat);
     const scriptedData = loadScripted(this.combat);
-    const groupScripted = scriptedData[groupId] || [[], [], []];
-    let action = (groupScripted[volleyIndex] || [])[0] || null;
-
-    // Fall back to GM's local actions
-    if (!action) {
-      const gmGroupActions = this.localActions[groupId] || [[], [], []];
-      action = (gmGroupActions[volleyIndex] || [])[0] || null;
-    }
-
-    // Check if a non-GM player owns this group and hasn't readied
     const readyData = loadReady(this.combat);
-    const groupReady = readyData[groupId];
-    if (!action && !groupReady) {
-      const groups = loadGroups(this.combat);
-      const group = groups.find(g => g.id === groupId);
-      const needsPlayerInput = (group?.combatantIds || []).some(cid => {
-        const c = this.combat.combatants.get(cid);
-        return c && !c.isOwner;
-      });
+    const revealed = loadRevealed(this.combat);
 
-      if (needsPlayerInput) {
-        const key = `${groupId}-${volleyIndex}`;
-        this._pendingRevealResolvers[key] = { action: null };
+    // Collect actions for both groups
+    for (const group of groups) {
+      const groupScripted = scriptedData[group.id] || [[], [], []];
+      let action = (groupScripted[volleyIndex] || [])[0] || null;
 
-        await this.combat.setFlag(FLAG_SCOPE, "dow-pendingReveal", {
-          groupId,
-          volleyIndex,
-          t: Date.now(),
-        });
+      // Fall back to GM's local actions (GM controls group 1)
+      if (!action) {
+        const localGroupActions = this.localActions[group.id] || [[], [], []];
+        action = (localGroupActions[volleyIndex] || [])[0] || null;
+      }
 
-        await new Promise(resolve => {
-          this._pendingRevealResolvers[key].resolve = resolve;
-          this._pendingRevealResolvers[key].timer = setTimeout(resolve, 30);
-        });
+      // Check if player needs to submit for this group
+      const groupReady = readyData[group.id];
+      if (!action && !groupReady) {
+        const groupIndex = groups.indexOf(group);
+        // Group 2 (index 1) is player-controlled — request their actions
+        if (groupIndex === 1) {
+          const key = `${group.id}-${volleyIndex}`;
+          this._pendingRevealResolvers[key] = { action: null };
 
-        action = this._pendingRevealResolvers[key].action;
-        delete this._pendingRevealResolvers[key];
+          await this.combat.setFlag(FLAG_SCOPE, "dow-pendingReveal", {
+            groupId: group.id,
+            volleyIndex,
+            t: Date.now(),
+          });
+
+          await new Promise(resolve => {
+            this._pendingRevealResolvers[key].resolve = resolve;
+            this._pendingRevealResolvers[key].timer = setTimeout(resolve, 30);
+          });
+
+          action = this._pendingRevealResolvers[key].action;
+          delete this._pendingRevealResolvers[key];
+        }
+      }
+
+      if (!revealed[group.id]) revealed[group.id] = {};
+      revealed[group.id][volleyIndex] = { action: action || "No Action" };
+
+      // Clear local actions for this volley
+      if (this.localActions[group.id]) {
+        this.localActions[group.id][volleyIndex] = [];
       }
     }
 
-    // Save revealed action
-    const revealed = loadRevealed(this.combat);
-    if (!revealed[groupId]) revealed[groupId] = {};
-    revealed[groupId][volleyIndex] = { action: action || "No Action" };
     await saveRevealed(this.combat, revealed);
-
-    // Clear local actions for this volley
-    if (this.localActions[groupId]) {
-      this.localActions[groupId][volleyIndex] = [];
-    }
   }
 
   // ---- Socket Handlers ----
@@ -800,7 +809,20 @@ class DowDialog extends Application {
       case "dow-boaChange":
         this._handleBoaChange(data);
         break;
+
+      case "dow-ready":
+        this._handleReady(data);
+        break;
     }
+  }
+
+  _handleReady(data) {
+    const { groupId } = data;
+    // Store a pending ready locally so hidden cards show immediately
+    if (!this._pendingReadyLocal[groupId]) {
+      this._pendingReadyLocal[groupId] = [[], [], []];
+    }
+    this.render(false);
   }
 
   async _handleBoaChange(data) {
@@ -862,20 +884,10 @@ class DowDialog extends Application {
   }
 
   _handleNextExchange(data) {
-    const { groupId } = data;
-    delete this.localActions[groupId];
-    if (this._remoteCardCounts) {
-      for (const key of Object.keys(this._remoteCardCounts)) {
-        if (key.startsWith(`${groupId}-`)) {
-          delete this._remoteCardCounts[key];
-        }
-      }
-    }
-    for (const key of this._previouslyRevealed) {
-      if (key.startsWith(`${groupId}-`)) {
-        this._previouslyRevealed.delete(key);
-      }
-    }
+    this.localActions = {};
+    this._pendingReadyLocal = {};
+    if (this._remoteCardCounts) this._remoteCardCounts = {};
+    this._previouslyRevealed = new Set();
     setTimeout(() => this.render(false), 500);
   }
 
@@ -887,7 +899,7 @@ class DowDialog extends Application {
   _applyRemoteCardCounts(data) {
     for (const group of data.groups) {
       for (const volley of group.volleys) {
-        if (!volley.isRevealed && !group.canReady && !group.isReady) {
+        if (!volley.isRevealed && !group.isGroupOwner && !group.isReady) {
           const remoteCount = this._getRemoteCardCount(group.id, volley.volleyIndex);
           if (remoteCount > 0) {
             volley.cards = Array.from({ length: remoteCount }, () => ({
@@ -920,13 +932,12 @@ function findDowDialog(combatId) {
 
 // ---- Hooks ----
 
-Hooks.once("ready", () => {
-  game.socket.on(SOCKET_NAME, (data) => {
-    if (!data.combatId) return;
-    if (!data.type?.startsWith("dow-")) return;
-    const dialog = findDowDialog(data.combatId);
-    if (dialog) dialog._handleSocket(data);
-  });
+// Listen on the shared socket hook dispatched by bw-fight.mjs
+Hooks.on("bw-fight-socket", (data) => {
+  if (!data.combatId) return;
+  if (!data.type?.startsWith("dow-")) return;
+  const dialog = findDowDialog(data.combatId);
+  if (dialog) dialog._handleSocket(data);
 });
 
 Hooks.on("updateCombat", (combat, change) => {

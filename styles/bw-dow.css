@@ -43,6 +43,25 @@
   padding: 4px 6px;
 }
 
+/* Exchange header */
+.bw-dow-dialog .dow-exchange-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+}
+
+.bw-dow-dialog .dow-exchange-header .exchange-counter {
+  font-weight: bold;
+  flex: 1;
+}
+
+/* Side cell: BoA on top, members below */
+.bw-dow-dialog .dow-side-cell {
+  vertical-align: top;
+  min-width: 90px;
+}
+
 /* Body of Argument */
 .bw-dow-dialog .dow-boa {
   display: flex;
@@ -53,10 +72,10 @@
 }
 
 .bw-dow-dialog .dow-boa label {
-  font-size: 0.7em;
+  font-size: 0.6em;
   font-weight: bold;
   text-align: center;
-  line-height: 1.1;
+  line-height: 1.2;
 }
 
 .bw-dow-dialog .dow-boa-controls {
@@ -102,47 +121,42 @@
   background: #d0d0d0;
 }
 
-/* Side members list */
-.bw-dow-dialog .dow-members {
+/* Members list (vertical under BoA) */
+.bw-dow-dialog .dow-members-vertical {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 4px 8px;
-  min-height: 32px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
 }
 
 .bw-dow-dialog .dow-member {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   background: #f0f0f0;
   border: 1px solid #ccc;
   border-radius: 4px;
-  padding: 6px;
+  padding: 3px 6px;
   font-size: 0.8em;
   position: relative;
 }
 
 .bw-dow-dialog .dow-member .actor-thumb {
-  width: 50px;
-  height: 50px;
+  width: 30px;
+  height: 30px;
   border-radius: 4px;
   object-fit: cover;
 }
 
 .bw-dow-dialog .dow-member .actor-name {
-  text-align: center;
-  max-width: 70px;
+  max-width: 60px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .bw-dow-dialog .dow-member .remove-from-group {
-  position: absolute;
-  top: 1px;
-  right: 1px;
+  margin-left: auto;
   background: none;
   border: none;
   color: #999;
@@ -153,4 +167,13 @@
 
 .bw-dow-dialog .dow-member .remove-from-group:hover {
   color: #c00;
+}
+
+.bw-dow-dialog .group-drop-zone {
+  padding: 8px;
+  text-align: center;
+  font-size: 0.8em;
+  color: #999;
+  border: 1px dashed #ccc;
+  border-radius: 4px;
 }
