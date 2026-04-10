@@ -7,8 +7,8 @@
     "minimum": "12",
     "verified": "12"
   },
-  "esmodules": ["scripts/bw-fight.mjs"],
-  "styles": ["styles/bw-fight.css"],
+  "esmodules": ["scripts/bw-fight.mjs", "scripts/bw-dow.mjs"],
+  "styles": ["styles/bw-fight.css", "styles/bw-dow.css"],
   "socket": true,
   "authors": [
     {
