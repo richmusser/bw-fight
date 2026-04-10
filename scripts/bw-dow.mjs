@@ -228,9 +228,24 @@ class DowDialog extends Application {
         delete this._pendingReadyLocal[group.id];
       }
 
-      // GM controls group 1 (index 0), non-GM players control group 2 (index 1)
       const groupIndex = groups.indexOf(group);
-      const isGroupOwner = isGM ? groupIndex === 0 : groupIndex === 1;
+
+      // Non-GM: owns group if they own a token in it.
+      // GM: owns group only if no non-GM player owns a token in it.
+      const playerOwnsTokenInGroup = (group.combatantIds || []).some(cid => {
+        const c = this.combat.combatants.get(cid);
+        if (!c?.actor) return false;
+        const ownership = c.actor.ownership || {};
+        return Object.entries(ownership).some(([userId, level]) => {
+          if (userId === "default") return false;
+          const user = game.users.get(userId);
+          return user && !user.isGM && level >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
+        });
+      });
+      const isGroupOwner = isGM ? !playerOwnsTokenInGroup : (group.combatantIds || []).some(cid => {
+        const c = this.combat.combatants.get(cid);
+        return c?.isOwner;
+      });
 
       const actors = (group.combatantIds || []).map(combatantId => {
         const combatant = this.combat.combatants.get(combatantId);
