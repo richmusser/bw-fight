@@ -7,13 +7,88 @@ const FLAG_SCRIPTED = "dow-scripted";
 
 const DOW_ACTIONS = [
   { name: "Point",
-    description: "**Test:** Point tests your appropriate social skill.\n\n**Effect:** Successes over the obstacle are used to reduce your opponent's body of argument." },
+    description: "**Tests:** Coarse Persuasion, Interrogation, Oratory, Persuasion, Poisonous Platitudes, Rhetoric, Stentorious Debate\n\n**Speaking the Part:** The Point action is the main attack of the verbal duelist. Hammer away using your statement of purpose and related points!\n\n**Effects:** In a standard test, subtract your Point successes from your opponent's body of argument. In a versus test, subtract the margin of success from your opponent's body of argument. This is the way to win debates!" },
+  { name: "Avoid the Topic",
+    description: "**Tests:** Will\n\n**Speaking the Part:** The speaking player must veer off topic, even to the point of sounding desperate or ridiculous.\n\n**Effects:** Avoid successes are subtracted from your opponent's Point, Obfuscate or Incite successes. This reduces the effectiveness of an opposed action. If Obfuscate or Incite successes aren't reduced to zero, then the incoming action wins and takes effect. Avoid never suffers a double obstacle penalty for stat versus skill. It's special." },
   { name: "Dismiss",
-    description: "**Test:** Dismiss tests your Will.\n\n**Effect:** A successful Dismiss allows you to ignore your opponent's argument and recover lost points to your body of argument." },
+    description: "**Tests:** Coarse Persuasion, Command, Intimidation, Oratory, Religious Diatribe, Rhetoric, Stentorious Debate, Ugly Truth\n\n**Speaking the Part:** This maneuver is used for the cataclysmic and undeniable conclusion of an argument. Loudly declare that your opponent knows nothing about the topic at hand and, furthermore, he's a fool and a dullard and shouldn't be listened to any further!\n\n**Special:** If a character fails to win the duel via his Dismiss action, he must hesitate for his next volley. Either cross off the next action, or skip the first volley of the coming exchange.\n\n**Effects:** Scripting a Dismiss adds +2D to the character's skill. In a standard test, subtract each success rolled from your opponent's body of argument. Against Rebuttal, subtract your margin of success over your opponent's defense from the body of argument. If you win against Obfuscate, all Dismiss successes are subtracted from the body of argument\u2014not just your margin of success." },
+  { name: "Feint",
+    description: "**Tests:** Extortion, Falsehood, Interrogation, Persuasion, Poisonous Platitudes, Religious Diatribe, Rhetoric, Soothing Platitudes, Seduction\n\n**Speaking the Part:** Using a Feint, the speaker leads his opponent on into a trap. He lures him to think he is discussing one point, until the hidden barb is revealed.\n\n**Effects:** Feint can be used to bypass Rebuttal and to attack Feint, Incite and Obfuscate. In a standard test, each success subtracts from your opponent's body of argument. In a versus test, margin of success is subtracted from your opponent's body of argument." },
+  { name: "Incite",
+    description: "**Tests:** Coarse Persuasion, Command, Extortion, Falsehood, Intimidation, Seduction, Ugly Truth\n\n**Speaking the Part:** With an acid tongue and biting wit, a character may attempt to distract or dismay his opponent. The speaking player must pronounce an outright insult to his opponent.\n\n**Effects:** In a standard test, the obstacle is equal to the victim's Will exponent. If the Inciting player passes the standard test or wins the versus test, the victim must make a Steel test. If the victim hesitates, he misses his next action. However, if the Incite fails, the margin of failure is added as advantage dice to the opponent's next test." },
+  { name: "Obfuscate",
+    description: "**Tests:** Falsehood, Oratory, Poisonous Platitudes, Rhetoric, Religious Diatribe, Soothing Platitudes, Stentorious Debate, Suasion, Ugly Truth\n\n**Speaking the Part:** Obfuscate is a verbal block. The player attempting to Obfuscate must present some non sequitur or bizarre, unrelated point in an attempt to confuse or distract his opponent. Obfuscate is spoken while your opponent is speaking.\n\n**Effects:** Obfuscate is tested versus everything, even itself. If the Obfuscator wins, the victim of this tactic loses his current action. If the Obfuscator exceeds his obstacle, his opponent also suffers a +1 Ob to his next action. If the Obfuscator loses the versus test, his opponent's current action goes off and his successes are applied as per his action description. Furthermore, he gains +1D to his next action." },
+  { name: "Rebuttal",
+    description: "**Tests:** Extortion, Interrogation, Oratory, Persuasion, Poisonous Platitudes, Rhetoric, Stentorious Debate, Suasion\n\n**Speaking the Part:** The player first lets his opponent make his attack. He then refutes the arguments made while making a fresh point himself.\n\n**Special:** When making a Rebuttal, you must divide your dice between attack and defense. This division happens before his opponent rolls. You must put at least one die in each pool. Any penalties to the action are applied to both pools. Any bonuses to the action are only applied to either attack or defense. If you only have one die, you can choose whether you attack or defend.\n\n**Effects:** Successes from the defense roll are subtracted from the opponent's successes. To fully defend against an Obfuscate action, you must get more defense successes than your opponent's Obfuscate successes. Each success on the attacking portion of a Rebuttal reduces your opponent's body of argument." },
 ];
+
+// Duel of Wits action interaction table.
+// Keys: "YourAction-OpponentAction" → "Std", "Vs", or "—"
+// Std = standard test, Vs = versus test, — = no test (vulnerable)
+const DOW_INTERACTIONS = {
+  "Avoid the Topic-Avoid the Topic": "—",
+  "Avoid the Topic-Dismiss": "—",
+  "Avoid the Topic-Feint": "—",
+  "Avoid the Topic-Incite": "Vs",
+  "Avoid the Topic-Obfuscate": "Vs",
+  "Avoid the Topic-Point": "Vs",
+  "Avoid the Topic-Rebuttal": "—",
+
+  "Dismiss-Avoid the Topic": "Std",
+  "Dismiss-Dismiss": "Std",
+  "Dismiss-Feint": "Std",
+  "Dismiss-Incite": "Std",
+  "Dismiss-Obfuscate": "Vs",
+  "Dismiss-Point": "Std",
+  "Dismiss-Rebuttal": "Vs",
+
+  "Feint-Avoid the Topic": "—",
+  "Feint-Dismiss": "—",
+  "Feint-Feint": "Vs",
+  "Feint-Incite": "Vs",
+  "Feint-Obfuscate": "Vs",
+  "Feint-Point": "—",
+  "Feint-Rebuttal": "Std",
+
+  "Incite-Avoid the Topic": "Vs",
+  "Incite-Dismiss": "Std",
+  "Incite-Feint": "Vs",
+  "Incite-Incite": "Std",
+  "Incite-Obfuscate": "Vs",
+  "Incite-Point": "Std",
+  "Incite-Rebuttal": "Std",
+
+  "Obfuscate-Avoid the Topic": "Vs",
+  "Obfuscate-Dismiss": "Vs",
+  "Obfuscate-Feint": "Vs",
+  "Obfuscate-Incite": "Vs",
+  "Obfuscate-Obfuscate": "Vs",
+  "Obfuscate-Point": "Vs",
+  "Obfuscate-Rebuttal": "Vs",
+
+  "Point-Avoid the Topic": "Vs",
+  "Point-Dismiss": "Std",
+  "Point-Feint": "Std",
+  "Point-Incite": "Std",
+  "Point-Obfuscate": "Vs",
+  "Point-Point": "Std",
+  "Point-Rebuttal": "Vs",
+
+  "Rebuttal-Avoid the Topic": "—",
+  "Rebuttal-Dismiss": "Vs",
+  "Rebuttal-Feint": "—",
+  "Rebuttal-Incite": "—",
+  "Rebuttal-Obfuscate": "Vs",
+  "Rebuttal-Point": "Vs",
+  "Rebuttal-Rebuttal": "—",
+};
 
 function getDowActionData(name) {
   return DOW_ACTIONS.find(a => a.name === name);
+}
+
+function getDowInteraction(yourAction, opponentAction) {
+  return DOW_INTERACTIONS[`${yourAction}-${opponentAction}`] || null;
 }
 
 // ---- Flag Helpers ----
@@ -260,6 +335,44 @@ class DowDialog extends Application {
     const exchange = firstGroup?.exchange || 1;
     const volleyRevealed = firstGroup?.volleyRevealed || [false, false, false];
 
+    // Build resolved volley details for revealed volleys
+    const resolvedVolleys = [0, 1, 2].map(vi => {
+      if (!volleyRevealed[vi] || groups.length < 2) return null;
+      const group1Revealed = revealed[groups[0].id]?.[vi];
+      const group2Revealed = revealed[groups[1].id]?.[vi];
+      if (!group1Revealed || !group2Revealed) return null;
+
+      const action1 = group1Revealed.action || "No Action";
+      const action2 = group2Revealed.action || "No Action";
+      const ad1 = getDowActionData(action1);
+      const ad2 = getDowActionData(action2);
+      const interaction1 = getDowInteraction(action1, action2) || "—";
+      const interaction2 = getDowInteraction(action2, action1) || "—";
+
+      const descHtml = (desc) => {
+        if (!desc) return "";
+        return desc
+          .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+          .replace(/\n\n/g, "<br><br>")
+          .replace(/\n/g, "<br>");
+      };
+
+      return {
+        volleyIndex: vi,
+        volleyLabel: `Volley ${vi + 1}`,
+        side1: {
+          action: action1,
+          description: descHtml(ad1?.description),
+          interaction: interaction1,
+        },
+        side2: {
+          action: action2,
+          description: descHtml(ad2?.description),
+          interaction: interaction2,
+        },
+      };
+    }).filter(Boolean);
+
     const data = {
       allCombatants,
       groups: groupsData,
@@ -268,6 +381,7 @@ class DowDialog extends Application {
       terms,
       exchange,
       volleyRevealed,
+      lastResolvedVolley: resolvedVolleys.length > 0 ? resolvedVolleys[resolvedVolleys.length - 1] : null,
     };
     return this._applyRemoteCardCounts(data);
   }
@@ -1034,7 +1148,7 @@ Hooks.on("renderCombatTracker", (app, html, data) => {
 
   html.find(".bw-dow-btn").remove();
 
-  const button = $(`<a class="combat-button bw-dow-btn" title="Duel of Wits!"><i class="fas fa-comments"></i> Duel of Wits!</a>`);
+  const button = $(`<a class="combat-button bw-dow-btn" title="Duel of Wits"><i class="fas fa-comments"></i> Duel of Wits</a>`);
   button.on("click", async () => {
     const existing = findDowDialog(game.combat.id);
     if (existing) {

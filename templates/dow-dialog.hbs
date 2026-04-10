@@ -34,6 +34,25 @@
     {{/if}}
   </div>
 
+  {{#if lastResolvedVolley}}
+  <div class="dow-resolved-volley">
+    <h3 class="dow-resolved-header">{{lastResolvedVolley.volleyLabel}}</h3>
+    <div class="dow-resolved-sides">
+      <div class="dow-resolved-side">
+        <div class="dow-resolved-action-name">{{lastResolvedVolley.side1.action}}</div>
+        <div class="dow-resolved-interaction">Resolution: <strong>{{lastResolvedVolley.side1.interaction}}</strong></div>
+        <div class="dow-resolved-description">{{{lastResolvedVolley.side1.description}}}</div>
+      </div>
+      <div class="dow-resolved-vs">VS</div>
+      <div class="dow-resolved-side">
+        <div class="dow-resolved-action-name">{{lastResolvedVolley.side2.action}}</div>
+        <div class="dow-resolved-interaction">Resolution: <strong>{{lastResolvedVolley.side2.interaction}}</strong></div>
+        <div class="dow-resolved-description">{{{lastResolvedVolley.side2.description}}}</div>
+      </div>
+    </div>
+  </div>
+  {{/if}}
+
   <table class="volley-grid dow-grid">
     <thead>
       <tr>

@@ -56,6 +56,62 @@
   flex: 1;
 }
 
+/* Resolved volley display */
+.bw-dow-dialog .dow-resolved-volley {
+  margin: 4px 8px;
+  padding: 6px 8px;
+  border: 1px solid #b0c4de;
+  border-radius: 4px;
+  background: #f0f5ff;
+}
+
+.bw-dow-dialog .dow-resolved-header {
+  margin: 0 0 4px 0;
+  font-size: 0.95em;
+  text-align: center;
+  border-bottom: 1px solid #b0c4de;
+  padding-bottom: 3px;
+}
+
+.bw-dow-dialog .dow-resolved-sides {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.bw-dow-dialog .dow-resolved-side {
+  flex: 1;
+  min-width: 0;
+}
+
+.bw-dow-dialog .dow-resolved-action-name {
+  font-weight: bold;
+  font-size: 1em;
+  margin-bottom: 2px;
+}
+
+.bw-dow-dialog .dow-resolved-interaction {
+  font-size: 0.85em;
+  margin-bottom: 4px;
+  color: #333;
+}
+
+.bw-dow-dialog .dow-resolved-description {
+  font-size: 0.75em;
+  line-height: 1.3;
+  color: #555;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.bw-dow-dialog .dow-resolved-vs {
+  font-weight: bold;
+  font-size: 1.1em;
+  color: #8b0000;
+  padding-top: 8px;
+  flex-shrink: 0;
+}
+
 /* Side cell: BoA on top, members below */
 .bw-dow-dialog .dow-side-cell {
   vertical-align: top;
