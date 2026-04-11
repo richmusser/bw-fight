@@ -469,6 +469,9 @@ class FightDialog extends Application {
     // Local knocked-down overrides received via socket before flags sync.
     // Maps "groupId-combatantId" → boolean
     this._localKnockedDown = {};
+    // Local weapon overrides received via socket before flags sync.
+    // Maps "groupId-combatantId" → weapon key string
+    this._localWeapon = {};
     // Tracks which group-volley combos have been revealed, for flip animation.
     // Seed from current flag state so existing reveals don't animate on open.
     this._previouslyRevealed = new Set();
@@ -670,6 +673,36 @@ class FightDialog extends Application {
           delete this._localKnockedDown[kdLocalKey];
         }
 
+        // Build weapon options from the actor's character sheet data
+        const weaponOptions = [];
+        const meleeWeapons = actor?.system?.gear?.weapons;
+        if (meleeWeapons) {
+          for (const [key, w] of Object.entries(meleeWeapons)) {
+            if (w?.name) {
+              weaponOptions.push({ value: `melee-${key}`, label: `${w.name} (${w.length || "—"})` });
+            }
+          }
+        }
+        const rangedWeapons = actor?.system?.gear?.rangedWeapons;
+        if (rangedWeapons) {
+          for (const [key, w] of Object.entries(rangedWeapons)) {
+            if (w?.name) {
+              const range = [w.optimalRange, w.extremeRange].filter(Boolean).join("/");
+              weaponOptions.push({ value: `ranged-${key}`, label: `${w.name}${range ? ` (${range})` : ""}` });
+            }
+          }
+        }
+
+        const weaponLocalKey = `${group.id}-${combatantId}`;
+        const weaponLocalOverride = this._localWeapon[weaponLocalKey];
+        const combatantWeapon = weaponLocalOverride ?? (group.combatantWeapon || {})[combatantId] ?? "";
+        if (weaponLocalOverride != null && (group.combatantWeapon || {})[combatantId] === weaponLocalOverride) {
+          delete this._localWeapon[weaponLocalKey];
+        }
+        for (const opt of weaponOptions) {
+          opt.selected = opt.value === combatantWeapon;
+        }
+
         return {
           combatantId,
           name: tokenDoc?.name ?? actor?.name ?? "Unknown",
@@ -682,6 +715,7 @@ class FightDialog extends Application {
           disadvantageOptions,
           stanceOptions,
           knockedDown,
+          weaponOptions,
         };
       });
 
@@ -756,6 +790,7 @@ class FightDialog extends Application {
     html.find(".actor-disadvantage-select").on("change", this._onActorDisadvantageChange.bind(this));
     html.find(".actor-stance-select").on("change", this._onActorStanceChange.bind(this));
     html.find(".actor-knocked-down-check").on("change", this._onActorKnockedDownChange.bind(this));
+    html.find(".actor-weapon-select").on("change", this._onActorWeaponChange.bind(this));
     html.find(".action-card.blank").on("click", this._onBlankCardClick.bind(this));
     html.find(".action-card.owned").on("click", this._onOwnedCardClick.bind(this));
     html.find(".card-chat-btn").on("click", this._onChatIconClick.bind(this));
@@ -830,6 +865,7 @@ class FightDialog extends Application {
     this._pendingReadyLocal = {};
     this._localDisadvantage = {};
     this._localStance = {};
+    this._localWeapon = {};
     this._previouslyRevealed = new Set();
     this._pendingRevealResolvers = {};
     if (this._remoteCardCounts) this._remoteCardCounts = {};
@@ -965,6 +1001,101 @@ class FightDialog extends Application {
     }
   }
 
+  async _onActorWeaponChange(event) {
+    const groupId = event.currentTarget.dataset.groupId;
+    const combatantId = event.currentTarget.dataset.combatantId;
+    const value = event.currentTarget.value;
+
+    game.socket.emit(SOCKET_NAME, {
+      type: "weaponChange",
+      combatId: this.combat.id,
+      groupId,
+      combatantId,
+      value,
+    });
+
+    if (game.user.isGM) {
+      const groups = loadGroups(this.combat);
+      const group = groups.find(g => g.id === groupId);
+      if (group) {
+        if (!group.combatantWeapon) group.combatantWeapon = {};
+        group.combatantWeapon[combatantId] = value;
+        await saveGroups(this.combat, groups);
+      }
+    } else {
+      await game.user.setFlag(FLAG_SCOPE, "pendingWeapon", {
+        combatId: this.combat.id,
+        groupId,
+        combatantId,
+        value,
+        t: Date.now(),
+      });
+    }
+
+    // Sync weapon selection to the bw-dice-pool panel if installed
+    this._syncWeaponToDicePool(combatantId, value);
+  }
+
+  _syncWeaponToDicePool(combatantId, weaponKey) {
+    if (!game.poolPanel) return;
+
+    const combatant = this.combat.combatants.get(combatantId);
+    const actor = combatant?.actor;
+    if (!actor) return;
+
+    // Only sync if the dice pool's currently selected actor matches this combatant's actor
+    const controlledTokens = canvas.tokens?.controlled ?? [];
+    const poolActor = game.user.isGM
+      ? controlledTokens[0]?.actor
+      : (controlledTokens.filter(t => t.isOwner)[0]?.actor
+        ?? canvas.tokens?.placeables?.find(t => t.isOwner)?.actor);
+    if (!poolActor || poolActor.id !== actor.id) return;
+
+    if (!weaponKey) {
+      game.poolPanel.handleWeaponSelected("", "");
+      return;
+    }
+
+    const [type, index] = weaponKey.split("-");
+    if (type === "melee") {
+      const w = actor.system?.gear?.weapons?.[index];
+      if (!w?.name) return;
+      const actorPower = actor.system?.stats?.power?.exponent || 0;
+      const basePower = actorPower + (w.pow || 0);
+      const weaponData = {
+        name: w.name.trim(),
+        label: w.name.trim(),
+        i: Math.ceil(basePower / 2),
+        m: basePower,
+        s: Math.floor(basePower * 1.5),
+        shade: w.shade ?? "B",
+        type: "weapons",
+        va: w.va,
+        ws: w.ws,
+        add: w.add,
+        length: w.length,
+      };
+      game.poolPanel.handleWeaponSelected(weaponData.name, JSON.stringify(weaponData));
+    } else if (type === "ranged") {
+      const w = actor.system?.gear?.rangedWeapons?.[index];
+      if (!w?.name) return;
+      const weaponData = {
+        name: w.name.trim(),
+        label: w.name.trim(),
+        i: w.dofI,
+        m: w.dofM,
+        s: w.dofS,
+        shade: w.shade ?? "B",
+        add: "1/2",
+        type: "rangedWeapons",
+        ws: "-",
+        va: w.va,
+        length: `${w.optimalRange || ""} / ${w.extremeRange || ""}`,
+      };
+      game.poolPanel.handleWeaponSelected(weaponData.name, JSON.stringify(weaponData));
+    }
+  }
+
   async _addCombatantToGroup(combatantId, groupId) {
     const groups = loadGroups(this.combat);
     // Check not already assigned
@@ -998,6 +1129,7 @@ class FightDialog extends Application {
       if (group.combatantDisadvantage) delete group.combatantDisadvantage[combatantId];
       if (group.combatantStance) delete group.combatantStance[combatantId];
       if (group.combatantKnockedDown) delete group.combatantKnockedDown[combatantId];
+      if (group.combatantWeapon) delete group.combatantWeapon[combatantId];
       await saveGroups(this.combat, groups);
       // Clean local actions
       if (this.localActions[groupId]) delete this.localActions[groupId][combatantId];
@@ -1529,6 +1661,10 @@ class FightDialog extends Application {
         this._handleKnockedDownChange(data);
         break;
 
+      case "weaponChange":
+        this._handleWeaponChange(data);
+        break;
+
       case "showInteraction":
         this._showInteractionOverlay(data.action1, data.action2);
         break;
@@ -1643,6 +1779,24 @@ class FightDialog extends Application {
       if (group) {
         if (!group.combatantKnockedDown) group.combatantKnockedDown = {};
         group.combatantKnockedDown[combatantId] = value;
+        await saveGroups(this.combat, groups);
+      }
+    }
+
+    this.render(false);
+  }
+
+  async _handleWeaponChange(data) {
+    const { groupId, combatantId, value } = data;
+
+    this._localWeapon[`${groupId}-${combatantId}`] = value;
+
+    if (game.user.isGM) {
+      const groups = loadGroups(this.combat);
+      const group = groups.find(g => g.id === groupId);
+      if (group) {
+        if (!group.combatantWeapon) group.combatantWeapon = {};
+        group.combatantWeapon[combatantId] = value;
         await saveGroups(this.combat, groups);
       }
     }
@@ -1843,6 +1997,21 @@ Hooks.on("updateUser", (user, change) => {
       if (group) {
         if (!group.combatantKnockedDown) group.combatantKnockedDown = {};
         group.combatantKnockedDown[combatantId] = value;
+        saveGroups(combat, groups);
+      }
+    }
+  }
+
+  const pendingWeapon = user.getFlag(FLAG_SCOPE, "pendingWeapon");
+  if (pendingWeapon) {
+    const { combatId, groupId, combatantId, value } = pendingWeapon;
+    const combat = game.combats.get(combatId);
+    if (combat) {
+      const groups = loadGroups(combat);
+      const group = groups.find(g => g.id === groupId);
+      if (group) {
+        if (!group.combatantWeapon) group.combatantWeapon = {};
+        group.combatantWeapon[combatantId] = value;
         saveGroups(combat, groups);
       }
     }

@@ -258,6 +258,7 @@
 
 .actor-disadvantage,
 .actor-stance,
+.actor-weapon,
 .actor-knocked-down {
   display: flex;
   align-items: center;
@@ -268,6 +269,7 @@
 
 .actor-disadvantage label,
 .actor-stance label,
+.actor-weapon label,
 .actor-knocked-down label {
   font-weight: bold;
   white-space: nowrap;
@@ -275,7 +277,8 @@
 }
 
 .actor-disadvantage select,
-.actor-stance select {
+.actor-stance select,
+.actor-weapon select {
   height: 20px;
   font-size: 1em;
   padding: 0 2px;

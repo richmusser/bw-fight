@@ -99,6 +99,17 @@
                   {{/each}}
                 </select>
               </div>
+              {{#if weaponOptions.length}}
+              <div class="actor-weapon">
+                <label>Weapon:</label>
+                <select class="actor-weapon-select" data-group-id="{{../id}}" data-combatant-id="{{combatantId}}">
+                  <option value="">— Select —</option>
+                  {{#each weaponOptions}}
+                  <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+                  {{/each}}
+                </select>
+              </div>
+              {{/if}}
               <div class="actor-knocked-down">
                 <label for="kd-{{../id}}-{{combatantId}}">Knocked Down</label>
                 <input type="checkbox" id="kd-{{../id}}-{{combatantId}}" class="actor-knocked-down-check" data-group-id="{{../id}}" data-combatant-id="{{combatantId}}" {{#if knockedDown}}checked{{/if}} />
