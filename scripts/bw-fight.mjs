@@ -83,6 +83,330 @@ function getActionData(name) {
   return ACTIONS.find(a => a.name === name);
 }
 
+// Fight action interaction table.
+// Keys: "YourAction-OpponentAction" → obstacle string
+// Obstacle types:
+//   "Ob 1"       = standard test, obstacle 1
+//   "½ Skill"    = standard test, obstacle = half opponent's weapon skill (round up)
+//   "½ Pow"      = standard test, obstacle = half opponent's Power
+//   "½ Spd"      = standard test, obstacle = half opponent's Speed
+//   "½ For"      = standard test, obstacle = half opponent's Forte
+//   "½ Agi"      = standard test, obstacle = half opponent's Agility
+//   "Ob = Skill" = standard test, obstacle = opponent's full weapon skill exponent
+//   "Vs Spd"     = versus test vs opponent's Speed
+//   "Vs Skill"   = versus test vs opponent's weapon skill
+//   "Vs Pow"     = versus test vs opponent's Power
+//   "Vs Agi"     = versus test vs opponent's Agility
+//   "Vs+ Spd"    = versus test, opponent adds Speed exponent to successes
+//   "Vs+ Skill"  = versus test, opponent adds weapon skill exponent to successes
+//   "Vs÷ Skill"  = versus test, you use divided skill pool (Counterstrike)
+//   "Vs+÷ Skill" = versus test +, you use divided skill pool (Disarm vs Counterstrike)
+//   "—"          = no test / dash (you do not test; check opponent's action for their obstacle)
+const FIGHT_INTERACTIONS = {
+  // ── Strike ──
+  "Strike-Strike": "Ob 1",
+  "Strike-Great Strike": "Ob 1",
+  "Strike-Avoid": "Vs Spd",
+  "Strike-Block": "Vs Skill",
+  "Strike-Counterstrike": "Vs÷ Skill",
+  "Strike-Beat": "Ob 1",
+  "Strike-Disarm": "Ob 1",
+  "Strike-Feint": "Ob 1",
+  "Strike-Charge/Tackle": "Ob 1",
+  "Strike-Lock": "Ob 1",
+  "Strike-Push": "Ob 1",
+  "Strike-Throw Person": "Ob 1",
+  "Strike-Assess": "Ob 1",
+  "Strike-Change Stance": "Ob 1",
+  "Strike-Physical Action": "Ob 1",
+  "Strike-Draw Weapon": "Ob 1",
+  "Strike-Get Up": "Ob 1",
+  "Strike-No Action": "Ob 1",
+  "Strike-Shooting/Throwing": "Ob 1",
+  "Strike-Magic": "Ob 1",
+  "Strike-Social": "Ob 1",
+  "Strike-Stand and Drool": "Ob 1",
+  "Strike-Fall Prone": "Ob 1",
+  "Strike-Run Screaming": "½ Spd",
+  "Strike-Swoon": "—",
+
+  // ── Great Strike ──
+  "Great Strike-Strike": "Ob 1",
+  "Great Strike-Great Strike": "Ob 1",
+  "Great Strike-Avoid": "Vs Spd",
+  "Great Strike-Block": "Ob 1",
+  "Great Strike-Counterstrike": "Vs Skill",
+  "Great Strike-Beat": "Ob 1",
+  "Great Strike-Disarm": "Ob 1",
+  "Great Strike-Feint": "Ob 1",
+  "Great Strike-Charge/Tackle": "Ob 1",
+  "Great Strike-Lock": "Ob 1",
+  "Great Strike-Push": "Ob 1",
+  "Great Strike-Throw Person": "Ob 1",
+  "Great Strike-Assess": "Ob 1",
+  "Great Strike-Change Stance": "Ob 1",
+  "Great Strike-Physical Action": "Ob 1",
+  "Great Strike-Draw Weapon": "Ob 1",
+  "Great Strike-Get Up": "Ob 1",
+  "Great Strike-No Action": "Ob 1",
+  "Great Strike-Shooting/Throwing": "Ob 1",
+  "Great Strike-Magic": "Ob 1",
+  "Great Strike-Social": "Ob 1",
+  "Great Strike-Stand and Drool": "Ob 1",
+  "Great Strike-Fall Prone": "Ob 1",
+  "Great Strike-Run Screaming": "½ Spd",
+  "Great Strike-Swoon": "—",
+
+  // ── Lock & Strike ──
+  "Lock & Strike-Strike": "Ob 1",
+  "Lock & Strike-Great Strike": "Ob 1",
+  "Lock & Strike-Avoid": "Vs Spd",
+  "Lock & Strike-Block": "Vs Skill",
+  "Lock & Strike-Counterstrike": "Vs÷ Skill",
+  "Lock & Strike-Beat": "Ob 1",
+  "Lock & Strike-Disarm": "Ob 1",
+  "Lock & Strike-Feint": "Ob 1",
+  "Lock & Strike-Charge/Tackle": "Ob 1",
+  "Lock & Strike-Lock": "Ob 1",
+  "Lock & Strike-Push": "Ob 1",
+  "Lock & Strike-Throw Person": "Ob 1",
+  "Lock & Strike-Assess": "Ob 1",
+  "Lock & Strike-Change Stance": "Ob 1",
+  "Lock & Strike-Physical Action": "Ob 1",
+  "Lock & Strike-Draw Weapon": "Ob 1",
+  "Lock & Strike-Get Up": "Ob 1",
+  "Lock & Strike-No Action": "Ob 1",
+  "Lock & Strike-Shooting/Throwing": "Ob 1",
+  "Lock & Strike-Magic": "Ob 1",
+  "Lock & Strike-Social": "Ob 1",
+  "Lock & Strike-Stand and Drool": "Ob 1",
+  "Lock & Strike-Fall Prone": "Ob 1",
+  "Lock & Strike-Run Screaming": "½ Spd",
+  "Lock & Strike-Swoon": "—",
+
+  // ── Avoid ──
+  "Avoid-Strike": "Vs Skill",
+  "Avoid-Great Strike": "Vs Skill",
+  "Avoid-Avoid": "—",
+  "Avoid-Block": "—",
+  "Avoid-Counterstrike": "—",
+  "Avoid-Beat": "Vs Skill",
+  "Avoid-Disarm": "Vs+ Skill",
+  "Avoid-Feint": "—",
+  "Avoid-Charge/Tackle": "Vs Pow",
+  "Avoid-Lock": "Vs Pow",
+  "Avoid-Push": "Vs Pow",
+  "Avoid-Throw Person": "Vs Skill",
+
+  // ── Block ──
+  "Block-Strike": "Vs Skill",
+  "Block-Great Strike": "—",
+  "Block-Avoid": "—",
+  "Block-Block": "—",
+  "Block-Counterstrike": "—",
+  "Block-Beat": "Vs Skill",
+  "Block-Disarm": "Vs+ Skill",
+  "Block-Feint": "—",
+  "Block-Charge/Tackle": "—",
+  "Block-Lock": "Vs Pow",
+  "Block-Push": "Vs Pow",
+  "Block-Throw Person": "Vs Skill",
+
+  // ── Counterstrike ──
+  "Counterstrike-Strike": "Vs÷ Skill",
+  "Counterstrike-Great Strike": "Vs÷ Skill",
+  "Counterstrike-Avoid": "—",
+  "Counterstrike-Block": "—",
+  "Counterstrike-Counterstrike": "—",
+  "Counterstrike-Beat": "Vs÷ Skill",
+  "Counterstrike-Disarm": "Vs+÷ Skill",
+  "Counterstrike-Feint": "—",
+  "Counterstrike-Charge/Tackle": "—",
+  "Counterstrike-Lock": "Vs Pow",
+  "Counterstrike-Push": "Vs Pow",
+  "Counterstrike-Throw Person": "Vs÷ Skill",
+
+  // ── Beat ──
+  "Beat-Strike": "½ Skill",
+  "Beat-Great Strike": "½ Skill",
+  "Beat-Avoid": "Vs Spd",
+  "Beat-Block": "Vs Skill",
+  "Beat-Counterstrike": "Vs÷ Skill",
+  "Beat-Beat": "Vs Skill",
+  "Beat-Disarm": "Vs+ Skill",
+  "Beat-Feint": "Vs Skill",
+  "Beat-Charge/Tackle": "½ Skill",
+  "Beat-Lock": "½ Skill",
+  "Beat-Push": "½ Skill",
+  "Beat-Throw Person": "½ Skill",
+  "Beat-Assess": "½ Skill",
+  "Beat-Change Stance": "½ Skill",
+  "Beat-Physical Action": "½ Skill",
+  "Beat-Draw Weapon": "½ Skill",
+  "Beat-Get Up": "½ Skill",
+  "Beat-No Action": "½ Skill",
+  "Beat-Shooting/Throwing": "½ Skill",
+  "Beat-Magic": "½ Skill",
+  "Beat-Social": "½ Skill",
+  "Beat-Stand and Drool": "Ob 1",
+  "Beat-Fall Prone": "Ob 1",
+  "Beat-Run Screaming": "Ob 1",
+  "Beat-Swoon": "—",
+
+  // ── Disarm ──
+  "Disarm-Strike": "Ob = Skill",
+  "Disarm-Great Strike": "Ob = Skill",
+  "Disarm-Avoid": "Vs+ Spd",
+  "Disarm-Block": "Vs+ Skill",
+  "Disarm-Counterstrike": "Vs+÷ Skill",
+  "Disarm-Beat": "Vs+ Skill",
+  "Disarm-Disarm": "Ob = Skill",
+  "Disarm-Feint": "Vs Skill",
+  "Disarm-Charge/Tackle": "Ob = Skill",
+  "Disarm-Lock": "Ob = Skill",
+  "Disarm-Push": "Ob = Skill",
+  "Disarm-Throw Person": "Ob = Skill",
+  "Disarm-Assess": "Ob = Skill",
+  "Disarm-Change Stance": "Ob = Skill",
+  "Disarm-Physical Action": "Ob = Skill",
+  "Disarm-Draw Weapon": "Ob = Skill",
+  "Disarm-Get Up": "Ob = Skill",
+  "Disarm-No Action": "Ob = Skill",
+  "Disarm-Shooting/Throwing": "Ob = Skill",
+  "Disarm-Magic": "Ob = Skill",
+  "Disarm-Social": "Ob = Skill",
+  "Disarm-Stand and Drool": "Ob 1",
+  "Disarm-Fall Prone": "Ob 1",
+  "Disarm-Run Screaming": "½ Skill",
+  "Disarm-Swoon": "—",
+
+  // ── Feint ──
+  "Feint-Strike": "—",
+  "Feint-Great Strike": "—",
+  "Feint-Avoid": "—",
+  "Feint-Block": "Ob 1",
+  "Feint-Counterstrike": "Ob 1",
+  "Feint-Beat": "Vs Skill",
+  "Feint-Disarm": "Vs Skill",
+  "Feint-Feint": "Vs Skill",
+  "Feint-Charge/Tackle": "—",
+  "Feint-Lock": "—",
+  "Feint-Push": "—",
+  "Feint-Throw Person": "—",
+
+  // ── Charge/Tackle ──
+  "Charge/Tackle-Strike": "½ For",
+  "Charge/Tackle-Great Strike": "½ For",
+  "Charge/Tackle-Avoid": "Vs Spd",
+  "Charge/Tackle-Block": "½ Spd",
+  "Charge/Tackle-Counterstrike": "½ Spd",
+  "Charge/Tackle-Beat": "½ Spd",
+  "Charge/Tackle-Disarm": "½ For",
+  "Charge/Tackle-Feint": "½ For",
+  "Charge/Tackle-Charge/Tackle": "Vs Pow",
+  "Charge/Tackle-Lock": "½ For",
+  "Charge/Tackle-Push": "Vs Pow",
+  "Charge/Tackle-Throw Person": "Vs Skill",
+  "Charge/Tackle-Assess": "½ Spd",
+  "Charge/Tackle-Change Stance": "½ Spd",
+  "Charge/Tackle-Physical Action": "½ Spd",
+  "Charge/Tackle-Draw Weapon": "½ Spd",
+  "Charge/Tackle-Get Up": "½ For",
+  "Charge/Tackle-No Action": "½ For",
+  "Charge/Tackle-Shooting/Throwing": "½ Spd",
+  "Charge/Tackle-Magic": "½ Spd",
+  "Charge/Tackle-Social": "½ Spd",
+  "Charge/Tackle-Stand and Drool": "Ob 1",
+  "Charge/Tackle-Fall Prone": "Ob 1",
+  "Charge/Tackle-Run Screaming": "Vs Spd",
+  "Charge/Tackle-Swoon": "—",
+
+  // ── Lock ──
+  "Lock-Strike": "½ Pow",
+  "Lock-Great Strike": "½ Pow",
+  "Lock-Avoid": "Vs Spd",
+  "Lock-Block": "Vs Skill",
+  "Lock-Counterstrike": "Vs÷ Skill",
+  "Lock-Beat": "½ Pow",
+  "Lock-Disarm": "Vs Skill",
+  "Lock-Feint": "½ Pow",
+  "Lock-Charge/Tackle": "½ Pow",
+  "Lock-Lock": "Vs Pow",
+  "Lock-Push": "½ Pow",
+  "Lock-Throw Person": "½ Pow",
+  "Lock-Assess": "½ Pow",
+  "Lock-Change Stance": "½ Pow",
+  "Lock-Physical Action": "½ Pow",
+  "Lock-Draw Weapon": "½ Pow",
+  "Lock-Get Up": "½ Pow",
+  "Lock-No Action": "½ Pow",
+  "Lock-Shooting/Throwing": "½ Pow",
+  "Lock-Magic": "½ Pow",
+  "Lock-Social": "½ Pow",
+  "Lock-Stand and Drool": "Ob 1",
+  "Lock-Fall Prone": "Ob 1",
+  "Lock-Run Screaming": "Vs Agi",
+  "Lock-Swoon": "—",
+
+  // ── Push ──
+  "Push-Strike": "½ Spd",
+  "Push-Great Strike": "½ Spd",
+  "Push-Avoid": "Vs Spd",
+  "Push-Block": "Vs Skill",
+  "Push-Counterstrike": "Vs÷ Skill",
+  "Push-Beat": "½ Spd",
+  "Push-Disarm": "½ Pow",
+  "Push-Feint": "½ Spd",
+  "Push-Charge/Tackle": "Vs Pow",
+  "Push-Lock": "½ Spd",
+  "Push-Push": "Vs Pow",
+  "Push-Throw Person": "Vs Skill",
+  "Push-Assess": "½ Pow",
+  "Push-Change Stance": "½ Pow",
+  "Push-Physical Action": "½ Spd",
+  "Push-Draw Weapon": "½ Spd",
+  "Push-Get Up": "½ Spd",
+  "Push-No Action": "½ Spd",
+  "Push-Shooting/Throwing": "½ Spd",
+  "Push-Magic": "½ Spd",
+  "Push-Social": "½ Spd",
+  "Push-Stand and Drool": "Ob 1",
+  "Push-Fall Prone": "Ob 1",
+  "Push-Run Screaming": "Vs Spd",
+  "Push-Swoon": "—",
+
+  // ── Throw Person ──
+  "Throw Person-Strike": "½ Spd",
+  "Throw Person-Great Strike": "½ Spd",
+  "Throw Person-Avoid": "Vs Spd",
+  "Throw Person-Block": "Vs Skill",
+  "Throw Person-Counterstrike": "Vs÷ Skill",
+  "Throw Person-Beat": "½ Agi",
+  "Throw Person-Disarm": "½ Agi",
+  "Throw Person-Feint": "½ Spd",
+  "Throw Person-Charge/Tackle": "Vs Pow",
+  "Throw Person-Lock": "Vs Pow",
+  "Throw Person-Push": "Vs Pow",
+  "Throw Person-Throw Person": "Vs Skill",
+  "Throw Person-Assess": "½ Spd",
+  "Throw Person-Change Stance": "½ Spd",
+  "Throw Person-Physical Action": "½ Spd",
+  "Throw Person-Draw Weapon": "½ Spd",
+  "Throw Person-Get Up": "½ Spd",
+  "Throw Person-No Action": "½ Spd",
+  "Throw Person-Shooting/Throwing": "½ Spd",
+  "Throw Person-Magic": "½ Spd",
+  "Throw Person-Social": "½ Spd",
+  "Throw Person-Stand and Drool": "Ob 1",
+  "Throw Person-Fall Prone": "Ob 1",
+  "Throw Person-Run Screaming": "Vs Spd",
+  "Throw Person-Swoon": "—",
+};
+
+function getFightInteraction(yourAction, opponentAction) {
+  return FIGHT_INTERACTIONS[`${yourAction}-${opponentAction}`] || null;
+}
+
 // ---- Flag Helpers ----
 
 async function saveGroups(combat, groups) {
@@ -153,6 +477,8 @@ class FightDialog extends Application {
     }
     // Pending reveal callbacks
     this._pendingRevealResolvers = {};
+    // Selected revealed cards for interaction lookup (max 2)
+    this._selectedCards = [];
   }
 
   static get defaultOptions() {
@@ -421,7 +747,13 @@ class FightDialog extends Application {
     html.find(".action-card.blank").on("click", this._onBlankCardClick.bind(this));
     html.find(".action-card.owned").on("click", this._onOwnedCardClick.bind(this));
     html.find(".card-chat-btn").on("click", this._onChatIconClick.bind(this));
+    html.find(".action-card.revealed").on("click", this._onRevealedCardClick.bind(this));
     html.find(".ready-btn").on("click", this._onReadyClick.bind(this));
+
+    // Restore selected state on re-render
+    for (const sel of this._selectedCards) {
+      html.find(`.action-card.revealed[data-group-id="${sel.groupId}"][data-combatant-id="${sel.combatantId}"][data-volley="${sel.volley}"][data-card-index="${sel.cardIndex}"]`).addClass("selected");
+    }
 
     // Apply flip animation to newly revealed cards
     this._applyFlipAnimation(html);
@@ -810,6 +1142,130 @@ class FightDialog extends Application {
     ChatMessage.create({ content });
   }
 
+  _onRevealedCardClick(event) {
+    // Don't interfere with the chat icon
+    if (event.target.closest(".card-chat-btn")) return;
+    event.preventDefault();
+
+    const card = event.currentTarget;
+    const actionName = card.querySelector(".card-label")?.textContent?.trim();
+    if (!actionName) return;
+
+    const info = {
+      groupId: card.dataset.groupId,
+      combatantId: card.dataset.combatantId,
+      volley: card.dataset.volley,
+      cardIndex: card.dataset.cardIndex,
+      action: actionName,
+    };
+
+    // If clicking an already-selected card, deselect it
+    const existingIdx = this._selectedCards.findIndex(
+      s => s.groupId === info.groupId && s.combatantId === info.combatantId
+        && s.volley === info.volley && s.cardIndex === info.cardIndex
+    );
+    if (existingIdx >= 0) {
+      this._selectedCards.splice(existingIdx, 1);
+      card.classList.remove("selected");
+      return;
+    }
+
+    // If we already have 2 selected, clear them
+    if (this._selectedCards.length >= 2) {
+      this._selectedCards = [];
+      this.element.find(".action-card.revealed.selected").removeClass("selected");
+    }
+
+    this._selectedCards.push(info);
+    card.classList.add("selected");
+
+    // When 2 cards selected, show the interaction overlay
+    if (this._selectedCards.length === 2) {
+      const action1 = this._selectedCards[0].action;
+      const action2 = this._selectedCards[1].action;
+      this._showInteractionOverlay(action1, action2);
+
+      // Broadcast to all other clients
+      game.socket.emit(SOCKET_NAME, {
+        type: "showInteraction",
+        combatId: this.combat.id,
+        action1,
+        action2,
+      });
+    }
+  }
+
+  _showInteractionOverlay(action1, action2) {
+    // Remove any existing overlay
+    document.querySelectorAll(".fight-resolved-overlay").forEach(el => el.remove());
+
+    const interaction1 = getFightInteraction(action1, action2) ?? "—";
+    const interaction2 = getFightInteraction(action2, action1) ?? "—";
+
+    const data1 = getActionData(action1);
+    const data2 = getActionData(action2);
+
+    const toHtml = (desc) => {
+      if (!desc) return "";
+      return desc
+        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\n\n/g, "<br><br>")
+        .replace(/\n/g, "<br>");
+    };
+
+    const overlay = document.createElement("div");
+    overlay.classList.add("fight-resolved-overlay");
+    overlay.innerHTML = `
+      <div class="fight-resolved-header">
+        <h3>Action Interaction</h3>
+      </div>
+      <div class="fight-resolved-sides">
+        <div class="fight-resolved-side">
+          <div class="fight-resolved-action-name">${action1}</div>
+          <div class="fight-resolved-interaction">Resolution: <strong>${interaction1}</strong></div>
+          <div class="fight-resolved-description">${toHtml(data1?.description)}</div>
+        </div>
+        <div class="fight-resolved-vs">VS</div>
+        <div class="fight-resolved-side">
+          <div class="fight-resolved-action-name">${action2}</div>
+          <div class="fight-resolved-interaction">Resolution: <strong>${interaction2}</strong></div>
+          <div class="fight-resolved-description">${toHtml(data2?.description)}</div>
+        </div>
+      </div>
+    `;
+
+    // Create close button and position it absolutely via inline style
+    const closeBtn = document.createElement("button");
+    closeBtn.type = "button";
+    closeBtn.title = "Close";
+    closeBtn.innerHTML = `<i class="fas fa-times"></i>`;
+    closeBtn.style.cssText = "position:absolute;top:6px;right:6px;width:auto;height:auto;margin:0;background:none;border:none;font-size:1em;cursor:pointer;color:#888;padding:2px 4px;z-index:1;";
+    closeBtn.addEventListener("mouseenter", () => closeBtn.style.color = "#c00");
+    closeBtn.addEventListener("mouseleave", () => closeBtn.style.color = "#888");
+    overlay.appendChild(closeBtn);
+
+    document.body.appendChild(overlay);
+
+    const closeOverlay = () => {
+      overlay.remove();
+      document.removeEventListener("keydown", escHandler, true);
+      this._selectedCards = [];
+      this.element?.find(".action-card.revealed.selected").removeClass("selected");
+    };
+
+    const escHandler = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        closeOverlay();
+      }
+    };
+
+    // Use capture phase so Escape closes this before any other dialog
+    document.addEventListener("keydown", escHandler, true);
+    closeBtn.addEventListener("click", closeOverlay);
+  }
+
   _showActionPicker(anchorEl, groupId, combatantId, volleyIndex) {
     // Use the anchor element's document so this works in pop-out windows
     const doc = anchorEl.ownerDocument;
@@ -1022,6 +1478,10 @@ class FightDialog extends Application {
 
       case "stanceChange":
         this._handleStanceChange(data);
+        break;
+
+      case "showInteraction":
+        this._showInteractionOverlay(data.action1, data.action2);
         break;
     }
   }

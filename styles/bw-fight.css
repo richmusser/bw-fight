@@ -465,7 +465,15 @@
   border: 1px solid #1565c0;
   background: #e3f2fd;
   color: #0d47a1;
-  cursor: default;
+  cursor: pointer;
+}
+
+/* Selected revealed card (clicked for interaction lookup) */
+.action-card.revealed.selected {
+  border: 2px solid #ff6f00;
+  background: #fff3e0;
+  color: #e65100;
+  box-shadow: 0 0 6px rgba(255, 111, 0, 0.4);
 }
 
 /* Flip animation for revealed cards */
@@ -561,4 +569,77 @@
   background: #e3f2fd;
   border-color: #1565c0;
   color: #0d47a1;
+}
+
+/* Fight interaction overlay */
+.fight-resolved-overlay {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10001;
+  background: #f0f5ff;
+  border: 2px solid #b0c4de;
+  border-radius: 6px;
+  padding: 10px 14px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+  max-width: 700px;
+  width: 90vw;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.fight-resolved-overlay .fight-resolved-header {
+  display: flex;
+  align-items: center;
+  margin: 0 0 6px 0;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #b0c4de;
+}
+
+.fight-resolved-overlay .fight-resolved-header h3 {
+  margin: 0;
+  font-size: 1em;
+  border: none;
+  flex: 1;
+}
+
+
+.fight-resolved-overlay .fight-resolved-sides {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.fight-resolved-overlay .fight-resolved-side {
+  flex: 1;
+  min-width: 0;
+}
+
+.fight-resolved-overlay .fight-resolved-action-name {
+  font-weight: bold;
+  font-size: 1em;
+  margin-bottom: 2px;
+}
+
+.fight-resolved-overlay .fight-resolved-interaction {
+  font-size: 0.9em;
+  margin-bottom: 6px;
+  color: #333;
+}
+
+.fight-resolved-overlay .fight-resolved-description {
+  font-size: 0.8em;
+  line-height: 1.35;
+  color: #555;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.fight-resolved-overlay .fight-resolved-vs {
+  font-weight: bold;
+  font-size: 1.2em;
+  color: #8b0000;
+  padding-top: 10px;
+  flex-shrink: 0;
 }
