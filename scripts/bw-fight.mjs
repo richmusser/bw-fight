@@ -76,7 +76,10 @@ const ACTIONS = [
     description: "The character drops what he is holding, turns about and bolts for the exit. If the hesitation crosses the top of the exchange, the player must choose to disengage. He does not have access to weapon length dice." },
   { name: "Swoon",
     description: "The character passes out. He's out of the fight. If appropriate, he appears dead! He cannot be acted against unless another character pays special attention to him\u2014to finish him, slit his throat, check his pulse or whatever." },
-  { name: "No Action" },
+  { name: "No Action",
+    description: "**Against No Action**\n\nIf your Reflexes allows you to play an action, but your opponent doesn't have anything scripted because he's slower than you, consult the table on page 441 for your obstacle." },
+  { name: "Other",
+    description: "**Against No Action**\n\nIf your Reflexes allows you to play an action, but your opponent doesn't have anything scripted because he's slower than you, consult the table on page 441 for your obstacle." },
 ];
 
 function getActionData(name) {
@@ -122,6 +125,7 @@ const FIGHT_INTERACTIONS = {
   "Strike-Draw Weapon": "Ob 1",
   "Strike-Get Up": "Ob 1",
   "Strike-No Action": "Ob 1",
+  "Strike-Other": "Ob 1",
   "Strike-Shooting/Throwing": "Ob 1",
   "Strike-Magic": "Ob 1",
   "Strike-Social": "Ob 1",
@@ -149,6 +153,7 @@ const FIGHT_INTERACTIONS = {
   "Great Strike-Draw Weapon": "Ob 1",
   "Great Strike-Get Up": "Ob 1",
   "Great Strike-No Action": "Ob 1",
+  "Great Strike-Other": "Ob 1",
   "Great Strike-Shooting/Throwing": "Ob 1",
   "Great Strike-Magic": "Ob 1",
   "Great Strike-Social": "Ob 1",
@@ -176,6 +181,7 @@ const FIGHT_INTERACTIONS = {
   "Lock & Strike-Draw Weapon": "Ob 1",
   "Lock & Strike-Get Up": "Ob 1",
   "Lock & Strike-No Action": "Ob 1",
+  "Lock & Strike-Other": "Ob 1",
   "Lock & Strike-Shooting/Throwing": "Ob 1",
   "Lock & Strike-Magic": "Ob 1",
   "Lock & Strike-Social": "Ob 1",
@@ -197,6 +203,8 @@ const FIGHT_INTERACTIONS = {
   "Avoid-Lock": "Vs Pow",
   "Avoid-Push": "Vs Pow",
   "Avoid-Throw Person": "Vs Skill",
+  "Avoid-No Action": "—",
+  "Avoid-Other": "—",
 
   // ── Block ──
   "Block-Strike": "Vs Skill",
@@ -211,6 +219,8 @@ const FIGHT_INTERACTIONS = {
   "Block-Lock": "Vs Pow",
   "Block-Push": "Vs Pow",
   "Block-Throw Person": "Vs Skill",
+  "Block-No Action": "—",
+  "Block-Other": "—",
 
   // ── Counterstrike ──
   "Counterstrike-Strike": "Vs÷ Skill",
@@ -225,6 +235,8 @@ const FIGHT_INTERACTIONS = {
   "Counterstrike-Lock": "Vs Pow",
   "Counterstrike-Push": "Vs Pow",
   "Counterstrike-Throw Person": "Vs÷ Skill",
+  "Counterstrike-No Action": "—",
+  "Counterstrike-Other": "—",
 
   // ── Beat ──
   "Beat-Strike": "½ Skill",
@@ -245,6 +257,7 @@ const FIGHT_INTERACTIONS = {
   "Beat-Draw Weapon": "½ Skill",
   "Beat-Get Up": "½ Skill",
   "Beat-No Action": "½ Skill",
+  "Beat-Other": "½ Skill",
   "Beat-Shooting/Throwing": "½ Skill",
   "Beat-Magic": "½ Skill",
   "Beat-Social": "½ Skill",
@@ -272,6 +285,7 @@ const FIGHT_INTERACTIONS = {
   "Disarm-Draw Weapon": "Ob = Skill",
   "Disarm-Get Up": "Ob = Skill",
   "Disarm-No Action": "Ob = Skill",
+  "Disarm-Other": "Ob = Skill",
   "Disarm-Shooting/Throwing": "Ob = Skill",
   "Disarm-Magic": "Ob = Skill",
   "Disarm-Social": "Ob = Skill",
@@ -293,6 +307,8 @@ const FIGHT_INTERACTIONS = {
   "Feint-Lock": "—",
   "Feint-Push": "—",
   "Feint-Throw Person": "—",
+  "Feint-No Action": "—",
+  "Feint-Other": "—",
 
   // ── Charge/Tackle ──
   "Charge/Tackle-Strike": "½ For",
@@ -313,6 +329,7 @@ const FIGHT_INTERACTIONS = {
   "Charge/Tackle-Draw Weapon": "½ Spd",
   "Charge/Tackle-Get Up": "½ For",
   "Charge/Tackle-No Action": "½ For",
+  "Charge/Tackle-Other": "½ For",
   "Charge/Tackle-Shooting/Throwing": "½ Spd",
   "Charge/Tackle-Magic": "½ Spd",
   "Charge/Tackle-Social": "½ Spd",
@@ -340,6 +357,7 @@ const FIGHT_INTERACTIONS = {
   "Lock-Draw Weapon": "½ Pow",
   "Lock-Get Up": "½ Pow",
   "Lock-No Action": "½ Pow",
+  "Lock-Other": "½ Pow",
   "Lock-Shooting/Throwing": "½ Pow",
   "Lock-Magic": "½ Pow",
   "Lock-Social": "½ Pow",
@@ -367,6 +385,7 @@ const FIGHT_INTERACTIONS = {
   "Push-Draw Weapon": "½ Spd",
   "Push-Get Up": "½ Spd",
   "Push-No Action": "½ Spd",
+  "Push-Other": "½ Spd",
   "Push-Shooting/Throwing": "½ Spd",
   "Push-Magic": "½ Spd",
   "Push-Social": "½ Spd",
@@ -394,6 +413,7 @@ const FIGHT_INTERACTIONS = {
   "Throw Person-Draw Weapon": "½ Spd",
   "Throw Person-Get Up": "½ Spd",
   "Throw Person-No Action": "½ Spd",
+  "Throw Person-Other": "½ Spd",
   "Throw Person-Shooting/Throwing": "½ Spd",
   "Throw Person-Magic": "½ Spd",
   "Throw Person-Social": "½ Spd",
@@ -401,6 +421,33 @@ const FIGHT_INTERACTIONS = {
   "Throw Person-Fall Prone": "Ob 1",
   "Throw Person-Run Screaming": "Vs Spd",
   "Throw Person-Swoon": "—",
+  // ── No Action ── (passive; no test from this side)
+  "No Action-Strike": "—",
+  "No Action-Great Strike": "—",
+  "No Action-Avoid": "—",
+  "No Action-Block": "—",
+  "No Action-Counterstrike": "—",
+  "No Action-Beat": "—",
+  "No Action-Disarm": "—",
+  "No Action-Feint": "—",
+  "No Action-Charge/Tackle": "—",
+  "No Action-Lock": "—",
+  "No Action-Push": "—",
+  "No Action-Throw Person": "—",
+
+  // ── Other ── (same as No Action)
+  "Other-Strike": "—",
+  "Other-Great Strike": "—",
+  "Other-Avoid": "—",
+  "Other-Block": "—",
+  "Other-Counterstrike": "—",
+  "Other-Beat": "—",
+  "Other-Disarm": "—",
+  "Other-Feint": "—",
+  "Other-Charge/Tackle": "—",
+  "Other-Lock": "—",
+  "Other-Push": "—",
+  "Other-Throw Person": "—",
 };
 
 function getFightInteraction(yourAction, opponentAction) {
