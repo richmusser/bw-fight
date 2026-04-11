@@ -99,6 +99,10 @@
                   {{/each}}
                 </select>
               </div>
+              <div class="actor-knocked-down">
+                <label for="kd-{{../id}}-{{combatantId}}">Knocked Down</label>
+                <input type="checkbox" id="kd-{{../id}}-{{combatantId}}" class="actor-knocked-down-check" data-group-id="{{../id}}" data-combatant-id="{{combatantId}}" {{#if knockedDown}}checked{{/if}} />
+              </div>
             </div>
           </td>
           {{#each volleys}}

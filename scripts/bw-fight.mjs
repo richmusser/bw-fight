@@ -466,6 +466,9 @@ class FightDialog extends Application {
     // Local stance overrides received via socket before flags sync.
     // Maps "groupId-combatantId" → value
     this._localStance = {};
+    // Local knocked-down overrides received via socket before flags sync.
+    // Maps "groupId-combatantId" → boolean
+    this._localKnockedDown = {};
     // Tracks which group-volley combos have been revealed, for flip animation.
     // Seed from current flag state so existing reveals don't animate on open.
     this._previouslyRevealed = new Set();
@@ -660,6 +663,13 @@ class FightDialog extends Application {
           selected: s === combatantStance,
         }));
 
+        const kdLocalKey = `${group.id}-${combatantId}`;
+        const kdLocalOverride = this._localKnockedDown[kdLocalKey];
+        const knockedDown = kdLocalOverride ?? (group.combatantKnockedDown || {})[combatantId] ?? false;
+        if (kdLocalOverride != null && (group.combatantKnockedDown || {})[combatantId] === kdLocalOverride) {
+          delete this._localKnockedDown[kdLocalKey];
+        }
+
         return {
           combatantId,
           name: tokenDoc?.name ?? actor?.name ?? "Unknown",
@@ -671,6 +681,7 @@ class FightDialog extends Application {
           volleys,
           disadvantageOptions,
           stanceOptions,
+          knockedDown,
         };
       });
 
@@ -744,6 +755,7 @@ class FightDialog extends Application {
     // All users can change disadvantage/stance, click action cards, and ready button
     html.find(".actor-disadvantage-select").on("change", this._onActorDisadvantageChange.bind(this));
     html.find(".actor-stance-select").on("change", this._onActorStanceChange.bind(this));
+    html.find(".actor-knocked-down-check").on("change", this._onActorKnockedDownChange.bind(this));
     html.find(".action-card.blank").on("click", this._onBlankCardClick.bind(this));
     html.find(".action-card.owned").on("click", this._onOwnedCardClick.bind(this));
     html.find(".card-chat-btn").on("click", this._onChatIconClick.bind(this));
@@ -921,6 +933,38 @@ class FightDialog extends Application {
     }
   }
 
+  async _onActorKnockedDownChange(event) {
+    const groupId = event.currentTarget.dataset.groupId;
+    const combatantId = event.currentTarget.dataset.combatantId;
+    const value = event.currentTarget.checked;
+
+    game.socket.emit(SOCKET_NAME, {
+      type: "knockedDownChange",
+      combatId: this.combat.id,
+      groupId,
+      combatantId,
+      value,
+    });
+
+    if (game.user.isGM) {
+      const groups = loadGroups(this.combat);
+      const group = groups.find(g => g.id === groupId);
+      if (group) {
+        if (!group.combatantKnockedDown) group.combatantKnockedDown = {};
+        group.combatantKnockedDown[combatantId] = value;
+        await saveGroups(this.combat, groups);
+      }
+    } else {
+      await game.user.setFlag(FLAG_SCOPE, "pendingKnockedDown", {
+        combatId: this.combat.id,
+        groupId,
+        combatantId,
+        value,
+        t: Date.now(),
+      });
+    }
+  }
+
   async _addCombatantToGroup(combatantId, groupId) {
     const groups = loadGroups(this.combat);
     // Check not already assigned
@@ -953,6 +997,7 @@ class FightDialog extends Application {
       group.combatantIds = group.combatantIds.filter(id => id !== combatantId);
       if (group.combatantDisadvantage) delete group.combatantDisadvantage[combatantId];
       if (group.combatantStance) delete group.combatantStance[combatantId];
+      if (group.combatantKnockedDown) delete group.combatantKnockedDown[combatantId];
       await saveGroups(this.combat, groups);
       // Clean local actions
       if (this.localActions[groupId]) delete this.localActions[groupId][combatantId];
@@ -1480,6 +1525,10 @@ class FightDialog extends Application {
         this._handleStanceChange(data);
         break;
 
+      case "knockedDownChange":
+        this._handleKnockedDownChange(data);
+        break;
+
       case "showInteraction":
         this._showInteractionOverlay(data.action1, data.action2);
         break;
@@ -1576,6 +1625,24 @@ class FightDialog extends Application {
       if (group) {
         if (!group.combatantStance) group.combatantStance = {};
         group.combatantStance[combatantId] = value;
+        await saveGroups(this.combat, groups);
+      }
+    }
+
+    this.render(false);
+  }
+
+  async _handleKnockedDownChange(data) {
+    const { groupId, combatantId, value } = data;
+
+    this._localKnockedDown[`${groupId}-${combatantId}`] = value;
+
+    if (game.user.isGM) {
+      const groups = loadGroups(this.combat);
+      const group = groups.find(g => g.id === groupId);
+      if (group) {
+        if (!group.combatantKnockedDown) group.combatantKnockedDown = {};
+        group.combatantKnockedDown[combatantId] = value;
         await saveGroups(this.combat, groups);
       }
     }
@@ -1761,6 +1828,21 @@ Hooks.on("updateUser", (user, change) => {
       if (group) {
         if (!group.combatantStance) group.combatantStance = {};
         group.combatantStance[combatantId] = value;
+        saveGroups(combat, groups);
+      }
+    }
+  }
+
+  const pendingKnockedDown = user.getFlag(FLAG_SCOPE, "pendingKnockedDown");
+  if (pendingKnockedDown) {
+    const { combatId, groupId, combatantId, value } = pendingKnockedDown;
+    const combat = game.combats.get(combatId);
+    if (combat) {
+      const groups = loadGroups(combat);
+      const group = groups.find(g => g.id === groupId);
+      if (group) {
+        if (!group.combatantKnockedDown) group.combatantKnockedDown = {};
+        group.combatantKnockedDown[combatantId] = value;
         saveGroups(combat, groups);
       }
     }
